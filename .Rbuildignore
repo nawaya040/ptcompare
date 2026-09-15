@@ -8,5 +8,6 @@
 ^\.Rproj\.user$
 ^PLAN\.md$
 ^WORKLOG\.md$
+^AGENTS\.md$
 ^ptcompare_.*$
 ^ptcompare\.Rcheck$
