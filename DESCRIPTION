@@ -1,0 +1,19 @@
+Package: ptcompare
+Type: Package
+Title: Bayesian Multiscale Two-Sample Comparison
+Version: 0.0.1
+Authors@R: person("Naoki", "Awaya", role = c("aut", "cre"),
+    email = "nawaya@waseda.jp")
+Description: Bayesian comparison of two multivariate distributions using
+    hidden Markov Polya trees with adaptive partitions, following Awaya and
+    Ma (2024) <doi:10.1080/01621459.2022.2105223>. Provides posterior evidence
+    for overall differences, interpretable partition trees, local effect
+    sizes and computational diagnostics. Posterior computation combines
+    sequential Monte Carlo and recursive message passing.
+License: GPL (>= 2)
+Encoding: UTF-8
+Imports: Rcpp, graphics, grDevices, stats, utils
+LinkingTo: Rcpp
+Suggests: testthat (>= 3.0.0)
+Config/testthat/edition: 3
+RoxygenNote: 7.3.2

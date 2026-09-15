@@ -1,0 +1,7 @@
+kernel,size,reference_ms,optimized_ms,speedup
+normalization,256,3.44766,0.014238,242.145
+normalization,1024,55.5804,0.055127,1008.23
+normalization,4096,990.426,0.268792,3684.74
+candidate_counts_d10_L31,2000,0.4144,0.01872,22.1368
+candidate_counts_d10_L31,20000,4.21608,0.18706,22.5387
+candidate_counts_d10_L31,200000,41.6187,1.8261,22.791

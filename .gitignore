@@ -1,0 +1,12 @@
+.Rproj.user/
+.Rhistory
+.RData
+.local-library/
+.build/
+research/
+src/*.o
+src/*.dll
+src/*.so
+ptcompare_*.tar.gz
+ptcompare_*.zip
+ptcompare.Rcheck/

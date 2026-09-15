@@ -1,0 +1,12 @@
+^research$
+^evaluation$
+^scripts$
+^examples$
+^\.local-library$
+^\.build$
+^.*\.Rproj$
+^\.Rproj\.user$
+^PLAN\.md$
+^WORKLOG\.md$
+^ptcompare_.*$
+^ptcompare\.Rcheck$
