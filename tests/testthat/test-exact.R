@@ -15,9 +15,12 @@ test_that("fixed-tree messages agree with complete state enumeration", {
 test_that("SMC targets the fully enumerated adaptive tree posterior", {
   x <- rbind(c(.1,.1),c(.2,.8),c(.3,.4),c(.4,.9),c(.8,.3),c(.9,.6),
              c(.1,.7),c(.2,.6),c(.4,.2),c(.6,.5),c(.7,.8),c(.9,.1))
-  g <- rep(0:1,each=6); p <- pt_prior(max_depth=2,split_grid=3,min_node=2,beta=1.5,eta=.1)
+  g <- rep(0:1,each=6)
+  for (spike in c(TRUE,FALSE)) {
+  p <- pt_prior(max_depth=2,split_grid=3,min_node=2,beta=1.5,eta=.1,midpoint_spike=spike)
   ref <- ref_enumerate(x,g,p)
   expect_equal(sum(ref$weights),1)
+  expect_length(ref$weights,if (spike) 152 else 216)
   keys <- vapply(ref$tables,tree_key,character(1))
   for (threshold in c(0,1)) {
     set.seed(713)
@@ -32,6 +35,7 @@ test_that("SMC targets the fully enumerated adaptive tree posterior", {
     empirical[as.integer(names(agg))] <- agg
     expect_lt(sum(abs(empirical-ref$weights))/2,.07)
     if (threshold == 1) expect_gt(fit$diagnostics$resamples,0)
+  }
   }
 })
 

@@ -30,9 +30,27 @@ For numerical safety, a node is also terminal if a side of its unit-support
 rectangle is at most 4*(L+1)*machine_epsilon; such stops are explicitly reported.
 Relative fractions are k/(L+1), k=1,...,L, with probabilities proportional to
 exp(-eta*n_A*abs(k/(L+1)-1/2)). Ties at the actual floating-point cut go left.
-The first release uses the regular discrete prior without the legacy absorbing
-midpoint restriction. It is a finite variant in the Awaya--Ma framework; legacy
-numerical outputs are not its specification.
+This is location prior (2) of Awaya and Ma (2024), with N_L=L+1 (L odd).
+
+By default (midpoint_spike=TRUE) the spike-and-slab location prior of their
+Appendix A is used. An auxiliary R(A) has P(R(A)=1 | R(parent)=0) = r(A), the
+prior (2) mass at 1/2, and P(R(A)=1 | R(parent)=1) = 1; the root's parent has
+R=0. R(A)=1 fixes L(A)=1/2, and R(A)=0 draws L(A) from (2) renormalized
+without the midpoint. Hence L(A) follows (2) unless the parent was divided at
+its midpoint, in which case L(A)=1/2 and only the variable is random (uniform).
+Since R(A)=1 iff L(A)=1/2, R is a function of the tree, P(x | T, R)=P(x | T),
+and the joint SMC target of Appendix A (Proposition A.1) equals the tree
+target under this modified location prior. The engine therefore samples the
+split from the joint proposal over all allowed (variable, location) pairs; the
+marginal of R is the Bernoulli(r~(A)) of Appendix A.2 and the incremental
+weight is w_t(T_{t-1}, R^p_t). midpoint_spike=FALSE uses (2) at every node.
+
+Because r(A) is the prior (2) mass at 1/2, it grows with n_A: with eta=0.1 and
+L=15 it is 0.17, 0.56 and 0.95 for n_A=50, 200 and 600. For large samples the
+root is then usually divided at its midpoint and the whole tree is dyadic, as
+in Wong and Ma (2010); off-midpoint locations remain possible only below an
+off-midpoint ancestor. The spike reduces computation in such regions, which is
+the purpose stated in the paper. The legacy HMPT code is not the specification.
 
 The internal state is D (different), S (shared), or A (absorbing shared). At depth k,
 transition rows for parent D and S respectively are

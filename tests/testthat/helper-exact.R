@@ -31,18 +31,21 @@ ref_fixed <- function(t, p) {
   list(log_evidence=z, prob_null=sum(w[rowSums(states == 1) == 0]), prob_diff=pd)
 }
 ref_enumerate <- function(x, g, p) {
-  grow <- function(rows, lo, hi, depth) {
+  # locked: the parent was divided at its midpoint under the spike-and-slab prior.
+  grow <- function(rows, lo, hi, depth, locked = FALSE) {
     base <- list(rows=rows, depth=depth)
     if (depth >= p$max_depth || length(rows) < p$min_node)
       return(list(list(node=base, logprior=0)))
     fractions <- seq_len(p$split_grid)/(p$split_grid+1)
     lp <- -p$eta*length(rows)*abs(fractions-.5)
     lp <- lp-ref_lse(lp)-log(ncol(x))
+    if (locked) { keep <- fractions == .5; fractions <- fractions[keep]; lp <- -log(ncol(x)) }
     out <- list()
     for (j in seq_len(ncol(x))) for (k in seq_along(fractions)) {
       cut <- lo[j]+fractions[k]*(hi[j]-lo[j]); il <- rows[x[rows,j]<=cut]; ir <- setdiff(rows,il)
       hil <- hi; hil[j] <- cut; lor <- lo; lor[j] <- cut
-      ls <- grow(il,lo,hil,depth+1); rs <- grow(ir,lor,hi,depth+1)
+      lock <- p$midpoint_spike && fractions[k] == .5
+      ls <- grow(il,lo,hil,depth+1,lock); rs <- grow(ir,lor,hi,depth+1,lock)
       for (l in ls) for (r in rs) out[[length(out)+1]] <- list(
         node=c(base,list(dim=j, fraction=fractions[k], cut=cut, left=l$node, right=r$node)),
         logprior=lp[k]+l$logprior+r$logprior)

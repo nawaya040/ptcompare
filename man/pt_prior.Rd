@@ -12,7 +12,8 @@ pt_prior(
   beta = 1,
   prune = 0.3,
   precision = 1,
-  eta = 0.1
+  eta = 0.1,
+  midpoint_spike = TRUE
 )
 }
 \arguments{
@@ -32,6 +33,12 @@ pt_prior(
 
 \item{eta}{Concentration of the split prior around the midpoint. Candidate
 weights are proportional to exp(-eta * pooled_node_size * abs(fraction-0.5)).}
+
+\item{midpoint_spike}{Use the spike-and-slab location prior of Awaya and Ma
+(2024, Appendix A). The midpoint receives its prior mass from the split
+prior above; once a node is divided at the midpoint, all its descendants
+are divided at their midpoints. Set to FALSE for the location prior (2)
+at every node.}
 }
 \value{
 A validated model specification. These settings change the model,

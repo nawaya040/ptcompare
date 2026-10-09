@@ -24,12 +24,13 @@ double lsev(const std::vector<double>& a) {
 }
 struct Prior {
   int depth, grid, min_node;
+  bool spike;
   double gamma, beta, prune, precision, eta;
   A3 root;
   std::vector<std::array<A3,3>> trans;
   explicit Prior(const List& p) {
     depth=as<int>(p["max_depth"]); grid=as<int>(p["split_grid"]);
-    min_node=as<int>(p["min_node"]); gamma=as<double>(p["gamma"]);
+    min_node=as<int>(p["min_node"]); spike=as<bool>(p["midpoint_spike"]); gamma=as<double>(p["gamma"]);
     beta=as<double>(p["beta"]); prune=as<double>(p["prune"]);
     precision=as<double>(p["precision"]); eta=as<double>(p["eta"]);
     root={std::log((1-prune)*gamma),std::log((1-prune)*(1-gamma)),std::log(prune)};
@@ -43,7 +44,7 @@ struct Prior {
 };
 struct Node {
   int parent=-1,left=-1,right=-1,depth=0,dim=-1,n1=0,n2=0;
-  bool numerical_stop=false;
+  bool numerical_stop=false, midpoint=false;
   double cut=0, fraction=.5;
   A3 emission{0,0,0}, up{0,0,0}, message{0,0,0};
   std::shared_ptr<std::vector<int>> obs;
@@ -105,7 +106,7 @@ void bounds(const Tree& t,int id,int d,std::vector<double>& lo,std::vector<doubl
     else lo[par.dim]=std::max(lo[par.dim],par.cut);
   }
 }
-struct Option { int dim,l1,l2; double r,cut,logprior; A3 em; };
+struct Option { int dim,l1,l2; bool midpoint; double r,cut,logprior; A3 em; };
 struct Proposal { int id=-1; double increment=0; std::vector<Option> options; std::vector<double> cdf; };
 Proposal propose(Tree& t,const NumericMatrix& x,const IntegerVector& group,const Prior& p) {
   Proposal prop;
@@ -129,6 +130,12 @@ Proposal propose(Tree& t,const NumericMatrix& x,const IntegerVector& group,const
   std::vector<double> lp(L),logq;
   for(int k=0;k<L;++k) lp[k]=-p.eta*(a.n1+a.n2)*std::abs((k+1.)/(L+1.)-.5);
   double z=lsev(lp); for(double& v:lp) v-=z+std::log((double)d);
+  // Awaya and Ma (2024), Appendix A: R(A)=1 iff L(A)=1/2, and R is absorbing.
+  // A child of a midpoint split is therefore divided at the midpoint; otherwise
+  // the location prior is exactly (2), whose midpoint mass is r(A).
+  const int mid=(L-1)/2;
+  bool locked=p.spike && a.parent>=0 && t.nodes[a.parent].midpoint;
+  if(locked) for(int k=0;k<L;++k) lp[k]=k==mid?-std::log((double)d):neginf;
   prop.options.reserve(d*L); logq.reserve(d*L);
   for(int j=0;j<d;++j) {
     if(j%8==0) checkUserInterrupt();
@@ -146,9 +153,10 @@ Proposal propose(Tree& t,const NumericMatrix& x,const IntegerVector& group,const
     int l1=0,l2=0;
     for(int k=0;k<L;++k) {
       l1+=h1[k]; l2+=h2[k]; double r=(k+1.)/(L+1.);
+      if(lp[k]==neginf) continue;
       A3 em=emission(l1,l2,a.n1,a.n2,r,p), terms;
       for(int v=0;v<3;++v) terms[v]=pi[v]+em[v];
-      prop.options.push_back({j,l1,l2,r,cuts[k],lp[k],em});
+      prop.options.push_back({j,l1,l2,k==mid,r,cuts[k],lp[k],em});
       logq.push_back(lp[k]+lse(terms));
     }
   }
@@ -166,7 +174,7 @@ void split(Tree& t,const Proposal& prop,int choice,const NumericMatrix& x,
   l.obs->reserve(l.n1+l.n2); r.obs->reserve(r.n1+r.n2);
   for(int row:*a.obs) (x(row,o.dim)<=o.cut?*l.obs:*r.obs).push_back(row);
   if((int)l.obs->size()!=l.n1+l.n2) stop("Internal split count mismatch.");
-  a.left=left; a.right=left+1; a.dim=o.dim; a.cut=o.cut; a.fraction=o.r;
+  a.left=left; a.right=left+1; a.dim=o.dim; a.cut=o.cut; a.fraction=o.r; a.midpoint=o.midpoint;
   a.emission=o.em; a.obs.reset(); t.nodes[id]=a;
   t.nodes.push_back(l); t.nodes.push_back(r); ++t.cursor;
   t.logprior+=o.logprior; refresh(t,id,p);

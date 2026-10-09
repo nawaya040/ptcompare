@@ -29,12 +29,17 @@ pt_control <- function(particles = 256L, ess_threshold = 0.5,
 #' @param precision Total beta precision (between 1e-6 and 1e6), centered at the geometric split fraction.
 #' @param eta Concentration of the split prior around the midpoint. Candidate
 #'   weights are proportional to exp(-eta * pooled_node_size * abs(fraction-0.5)).
+#' @param midpoint_spike Use the spike-and-slab location prior of Awaya and Ma
+#'   (2024, Appendix A). The midpoint receives its prior mass from the split
+#'   prior above; once a node is divided at the midpoint, all its descendants
+#'   are divided at their midpoints. Set to FALSE for the location prior (2)
+#'   at every node.
 #' @return A validated model specification. These settings change the model,
 #'   including the finite resolution and pooled-data stopping rule.
 #' @export
 pt_prior <- function(max_depth = 8L, split_grid = 15L, min_node = 20L,
                      gamma = 0.3, beta = 1, prune = 0.3,
-                     precision = 1, eta = 0.1) {
+                     precision = 1, eta = 0.1, midpoint_spike = TRUE) {
   .pt_integer(max_depth, "max_depth", 1, 20)
   .pt_integer(split_grid, "split_grid", 1, 127)
   if (split_grid %% 2 != 1) stop("'split_grid' must be odd (to include the midpoint).", call. = FALSE)
@@ -44,9 +49,11 @@ pt_prior <- function(max_depth = 8L, split_grid = 15L, min_node = 20L,
   .pt_number(beta, "beta", 1, 100)
   .pt_number(precision, "precision", 1e-6, 1e6)
   .pt_number(eta, "eta", 0, 100)
+  .pt_flag(midpoint_spike, "midpoint_spike")
   structure(list(max_depth = as.integer(max_depth), split_grid = as.integer(split_grid),
                  min_node = as.integer(min_node), gamma = gamma, beta = beta,
-                 prune = prune, precision = precision, eta = eta), class = "pt_prior")
+                 prune = prune, precision = precision, eta = eta,
+                 midpoint_spike = midpoint_spike), class = "pt_prior")
 }
 
 #' Compare two multivariate distributions
