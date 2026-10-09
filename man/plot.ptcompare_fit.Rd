@@ -2,7 +2,7 @@
 % Please edit documentation in R/methods.R
 \name{plot.ptcompare_fit}
 \alias{plot.ptcompare_fit}
-\title{Plot a comparison tree, local region or computational diagnostics}
+\title{Plot the results of a comparison}
 \usage{
 \method{plot}{ptcompare_fit}(
   x,
@@ -13,30 +13,41 @@
 )
 }
 \arguments{
-\item{x}{Fitted comparison.}
+\item{x}{Result of \code{\link[=compare_pt]{compare_pt()}}.}
 
-\item{type}{One of 'tree', 'region', or 'diagnostics'.}
+\item{type}{\code{"tree"}, \code{"region"} or \code{"diagnostics"}.}
 
-\item{node}{Node ID for a local region plot. Defaults to the node with largest
-local difference probability.}
+\item{node}{For \code{type = "region"}: the \code{node_id} of the region to show (see
+\code{\link[=regions]{regions()}}). By default, the region with the largest \code{prob_difference}.}
 
-\item{max_depth}{Display tree through this depth (0 to 6). Hidden descendants are
-indicated with a plus sign; the fitted model is unchanged.}
+\item{max_depth}{For \code{type = "tree"}: show the tree down to this depth (0 to
+6). A \code{+} marks nodes whose subregions are not shown.}
 
-\item{...}{Graphical parameters passed to the main plotting call (for
-example \code{main}); ignored for \code{type = "diagnostics"}.}
+\item{...}{Graphical parameters such as \code{main} (not used for
+\code{type = "diagnostics"}).}
 }
 \value{
-Invisibly returns the plotted tree rows or region data, or diagnostics.
+The data shown, invisibly.
 }
 \description{
-Plot a comparison tree, local region or computational diagnostics
+Three kinds of plots:
+\itemize{
+\item \code{type = "tree"} (default): the representative tree. Each node is a
+region, labeled with its division (\code{variable <= threshold}) and
+\code{prob_difference}. Larger nodes contain more observations. The color
+shows the direction of the difference: blue when group 1 is more likely
+to be in the left part, brown when group 2 is.
+\item \code{type = "region"}: the distributions of the two groups inside one region,
+along the variable used to divide it. The dashed line is the threshold.
+\item \code{type = "diagnostics"}: the effective number of particles and the number
+of different trees at each step of the computation.
+}
 }
 \examples{
 set.seed(1)
-fit <- compare_pt(matrix(rnorm(120), ncol = 2), matrix(rnorm(120, 0.6), ncol = 2),
-                  control = pt_control(particles = 32, effect_draws = 256),
-                  prior = pt_prior(max_depth = 3, split_grid = 3))
+x <- matrix(rnorm(200), ncol = 2)
+y <- matrix(rnorm(200, mean = 0.8), ncol = 2)
+fit <- compare_pt(x, y, control = pt_control(particles = 32))
 plot(fit)
 plot(fit, type = "region")
 plot(fit, type = "diagnostics")

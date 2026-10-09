@@ -1,26 +1,53 @@
-#' Extract local differences on the representative tree
-#' @param x Fitted comparison.
-#' @param prob Minimum local posterior difference probability. This is an
-#'   exploratory filter, not a p-value or a frequentist error guarantee.
-#' @param min_n Minimum pooled region size.
-#' @param ... Reserved; must be empty.
-#' @return A data frame of internal nodes, ordered by `prob_difference` and then
-#'   `effect_abs`, with columns `node_id`, `parent_id`, `depth`, `condition`
-#'   (the region, in original units), `variable` and `threshold` (the split
-#'   inside the region; `variable <= threshold` is the left child), `n1`, `n2`,
-#'   `prob_difference` (posterior probability that the two groups differ in
-#'   this split), `effect` (posterior mean of the group 1 minus group 2 log odds
-#'   ratio of the left child), `effect_abs` (posterior mean absolute log odds
-#'   ratio), `lower` and `upper` (95% credible interval including the zero
-#'   point mass) and `prob_positive` (posterior probability of a positive log
-#'   odds ratio). Regions may overlap through ancestor/descendant nesting.
-#'   Effects and intervals condition on the representative tree.
+#' Regions where the two groups differ
+#'
+#' Lists the divisions of the representative tree and how much the two groups
+#' differ at each one. Use it to find where, and in which direction, the
+#' distributions differ.
+#'
+#' Each row is one division of a region into two parts. Inside the region
+#' described by `condition`, the observations are divided into those with
+#' `variable <= threshold` (the left part) and the rest (the right part). The
+#' row tells whether the two groups fall into the left part in different
+#' proportions.
+#'
+#' @param x Result of [compare_pt()].
+#' @param prob Show only rows with `prob_difference` at least this value
+#'   (between 0 and 1). Use `prob = 0` to show all divisions.
+#' @param min_n Show only regions with at least this many observations (both
+#'   groups together).
+#' @param ... Not used.
+#' @return A data frame with one row per division, sorted by
+#'   `prob_difference` (largest first). Columns:
+#'   \describe{
+#'     \item{`node_id`, `parent_id`, `depth`}{Position of the region in the
+#'       tree (as in `plot(fit)`); depth 0 is the whole data space.}
+#'     \item{`condition`}{The region, as conditions on the variables.}
+#'     \item{`variable`, `threshold`}{The division: the left part is
+#'       `variable <= threshold`.}
+#'     \item{`n1`, `n2`}{Number of observations of group 1 and group 2 in the
+#'       region.}
+#'     \item{`prob_difference`}{Posterior probability that the two groups
+#'       fall into the left part in different proportions.}
+#'     \item{`effect`}{Size and direction of the difference: the log odds
+#'       ratio of falling into the left part, group 1 versus group 2 (posterior
+#'       mean). Positive values mean group 1 is more likely to be in the left
+#'       part; negative values mean group 2 is.}
+#'     \item{`effect_abs`}{Posterior mean of the absolute log odds ratio: the
+#'       size of the difference regardless of direction.}
+#'     \item{`lower`, `upper`}{95% credible interval for the log odds ratio.
+#'       A limit is exactly 0 when the groups may not differ at this division.}
+#'     \item{`prob_positive`}{Posterior probability that group 1 is more
+#'       likely than group 2 to be in the left part.}
+#'   }
+#' @seealso [compare_pt()], `plot(fit, type = "region", node = ...)` to see the
+#'   data of one region.
 #' @examples
 #' set.seed(1)
-#' fit <- compare_pt(matrix(rnorm(120), ncol = 2), matrix(rnorm(120, 0.6), ncol = 2),
-#'                   control = pt_control(particles = 32, effect_draws = 256),
-#'                   prior = pt_prior(max_depth = 3, split_grid = 3))
-#' regions(fit, prob = 0)
+#' x <- matrix(rnorm(200), ncol = 2)
+#' y <- matrix(rnorm(200, mean = 0.8), ncol = 2)
+#' fit <- compare_pt(x, y, control = pt_control(particles = 32))
+#' regions(fit)
+#' regions(fit, prob = 0.9, min_n = 30)
 #' @export
 regions <- function(x, prob = 0.5, min_n = 0L, ...) {
   .pt_fit(x); .pt_dots(...); .pt_number(prob, "prob", 0, 1)
@@ -40,35 +67,69 @@ regions <- function(x, prob = 0.5, min_n = 0L, ...) {
 }
 
 #' Computational diagnostics
-#' @param x Fitted comparison.
-#' @param ... Reserved; must be empty.
-#' @return A list with the ESS trajectory, resampling counts, particle weights,
-#'   ancestry, stopping diagnostics and timing. Payload bytes measure retained
-#'   particle structures at iteration boundaries, excluding allocator overhead,
-#'   temporary allocations, input data and R output; this is not peak process RSS.
-#'   It is measured at SMC steps 1, 2, 4, 8, ... and at the end.
+#'
+#' Information about the computation of [compare_pt()], such as the number of
+#' effective particles and the running time. `plot(fit, type = "diagnostics")`
+#' shows the main quantities as graphs.
+#'
+#' @param x Result of [compare_pt()].
+#' @param ... Not used.
+#' @return A list with components:
+#'   \describe{
+#'     \item{`final_ess`}{Effective number of particles at the end (at most
+#'       `particles`).}
+#'     \item{`resamples`}{Number of resampling steps.}
+#'     \item{`elapsed_seconds`}{Running time of [compare_pt()] in seconds.}
+#'     \item{`trace`}{Data frame with one row per step of the computation:
+#'       effective number of particles before resampling (`ess`), number of
+#'       different trees (`unique_trees`), number of distinct initial
+#'       particles that the current particles descend from
+#'       (`root_ancestors`), and whether resampling took place (`resampled`).}
+#'     \item{`weights`, `particle_null`, `particle_scores`}{For each final
+#'       particle: its weight, its probability that the groups are the same,
+#'       and the fit score used to choose the representative tree.}
+#'     \item{`log_evidence`}{Estimated log marginal likelihood of the data.}
+#'     \item{`depth_limited_leaves`, `depth_limited_fraction`}{Number of
+#'       regions of the representative tree that reached `max_depth` with at
+#'       least `min_node` observations, and the fraction of observations in
+#'       them.}
+#'     \item{`numerical_stop_leaves`}{Number of regions too narrow to divide
+#'       further.}
+#'     \item{`unique_proposals`, `peak_particle_payload_bytes`}{Number of
+#'       distinct division steps computed, and the approximate memory used by
+#'       the particles (bytes).}
+#'   }
 #' @examples
 #' set.seed(1)
-#' fit <- compare_pt(matrix(rnorm(120), ncol = 2), matrix(rnorm(120, 0.6), ncol = 2),
-#'                   control = pt_control(particles = 32, effect_draws = 256),
-#'                   prior = pt_prior(max_depth = 3, split_grid = 3))
-#' diagnostics(fit)$final_ess
+#' x <- matrix(rnorm(200), ncol = 2)
+#' y <- matrix(rnorm(200, mean = 0.8), ncol = 2)
+#' fit <- compare_pt(x, y, control = pt_control(particles = 32))
+#' d <- diagnostics(fit)
+#' d$final_ess
+#' d$elapsed_seconds
 #' @export
 diagnostics <- function(x, ...) { .pt_fit(x); .pt_dots(...); x$diagnostics }
 
-#' Print and summarize a comparison
-#' @param x,object Fitted comparison, or its summary.
-#' @param top Number of local regions to show, ordered as in [regions()].
-#' @param ... Ignored.
-#' @return `summary()` returns an object of class `summary.ptcompare_fit` with
-#'   the global probabilities, settings, diagnostics and the `top` rows of
-#'   [regions()] (`regions`). The print methods return their argument invisibly.
+#' Summarize a comparison
+#'
+#' `print(fit)` shows the posterior probability that the two distributions
+#' differ. `summary(fit)` also shows the settings, a short report of the
+#' computation and the divisions with the largest `prob_difference` (see
+#' [regions()] for the meaning of the columns).
+#'
+#' @param x,object Result of [compare_pt()] (or of `summary()`).
+#' @param top Number of divisions to show.
+#' @param ... Not used.
+#' @return `summary()` returns a `summary.ptcompare_fit` object, which is
+#'   printed. Its component `regions` holds the divisions shown. `print()`
+#'   returns its argument invisibly.
 #' @examples
 #' set.seed(1)
-#' fit <- compare_pt(matrix(rnorm(120), ncol = 2), matrix(rnorm(120, 0.6), ncol = 2),
-#'                   control = pt_control(particles = 32, effect_draws = 256),
-#'                   prior = pt_prior(max_depth = 3, split_grid = 3))
+#' x <- matrix(rnorm(200), ncol = 2)
+#' y <- matrix(rnorm(200, mean = 0.8), ncol = 2)
+#' fit <- compare_pt(x, y, control = pt_control(particles = 32))
 #' fit
+#' summary(fit)
 #' summary(fit, top = 3)
 #' @name summary.ptcompare_fit
 NULL
@@ -81,10 +142,10 @@ print.ptcompare_fit <- function(x, ...) {
               x$group_names[2], x$sample_sizes[2], length(x$variables)))
   cat(sprintf("Posterior P(distributions differ): %.6f\n", x$prob_difference))
   cat(sprintf("Common coordinate transformation: %s\n", x$transform))
-  if (!any(x$tree$left > 0)) cat("No split was possible; P(equal) = 1 by construction of the finite model.\n")
-  cat(sprintf("Particles: %d; elapsed: %.2f s; representative internal nodes: %d\n",
+  if (!any(x$tree$left > 0)) cat("No division was possible (fewer observations than min_node).\n")
+  cat(sprintf("Particles: %d; elapsed: %.2f s; divisions in the representative tree: %d\n",
               x$control$particles, x$diagnostics$elapsed_seconds, sum(x$tree$left > 0)))
-  cat("Local summaries condition on the representative tree. Use summary(), regions(), plot().\n")
+  cat("Use summary(), regions() and plot() for details.\n")
   invisible(x)
 }
 
@@ -111,7 +172,7 @@ summary.ptcompare_fit <- function(object, ..., top = 6L) {
 print.summary.ptcompare_fit <- function(x, ...) {
   cat("Bayesian two-sample comparison\n")
   cat(sprintf("N = %d / %d; variables = %d\n", x$sample_sizes[1], x$sample_sizes[2], x$n_variables))
-  cat(sprintf("P(equal) = %.6g; P(different) = %.6g (finite model)\n", x$prob_null, x$prob_difference))
+  cat(sprintf("P(equal) = %.6g; P(different) = %.6g\n", x$prob_null, x$prob_difference))
   cat(sprintf("Common coordinate transformation: %s\n", x$transform))
   tr <- x$diagnostics$trace
   cat(sprintf("Final ESS = %.1f; resampling steps = %d; elapsed = %.2f s\n",
@@ -119,13 +180,12 @@ print.summary.ptcompare_fit <- function(x, ...) {
   if (nrow(tr)) cat(sprintf("Final root ancestors = %d; unique particle trees = %d\n",
                             tail(tr$root_ancestors, 1), tail(tr$unique_trees, 1)))
   if (x$diagnostics$depth_limited_leaves > 0)
-    cat(sprintf("Depth-limited leaves with >= min_node observations: %d (%.1f%% of observations)\n",
+    cat(sprintf("Regions that reached max_depth: %d (%.1f%% of observations)\n",
                 x$diagnostics$depth_limited_leaves, 100*x$diagnostics$depth_limited_fraction))
-  cat("Local split differences, conditional on the representative tree:\n")
+  cat("Divisions with the largest prob_difference (see ?regions):\n")
   a <- x$regions[, c("node_id", "variable", "threshold", "n1", "n2", "prob_difference", "effect", "lower", "upper"), drop = FALSE]
   print(a, row.names = FALSE, digits = 4)
-  cat("Positive effect: group 1 has higher conditional odds of the left child.\n")
-  cat("Intervals include the zero point mass. Probabilities are not p-values.\n")
+  cat("effect > 0: group 1 is more likely to satisfy variable <= threshold within the region.\n")
   invisible(x)
 }
 
@@ -136,21 +196,33 @@ print.summary.ptcompare_fit <- function(x, ...) {
   if (length(list(...))) stop("Unused arguments in '...'.", call. = FALSE)
 }
 
-#' Plot a comparison tree, local region or computational diagnostics
-#' @param x Fitted comparison.
-#' @param type One of 'tree', 'region', or 'diagnostics'.
-#' @param node Node ID for a local region plot. Defaults to the node with largest
-#'   local difference probability.
-#' @param max_depth Display tree through this depth (0 to 6). Hidden descendants are
-#'   indicated with a plus sign; the fitted model is unchanged.
-#' @param ... Graphical parameters passed to the main plotting call (for
-#'   example `main`); ignored for `type = "diagnostics"`.
-#' @return Invisibly returns the plotted tree rows or region data, or diagnostics.
+#' Plot the results of a comparison
+#'
+#' Three kinds of plots:
+#' * `type = "tree"` (default): the representative tree. Each node is a
+#'   region, labeled with its division (`variable <= threshold`) and
+#'   `prob_difference`. Larger nodes contain more observations. The color
+#'   shows the direction of the difference: blue when group 1 is more likely
+#'   to be in the left part, brown when group 2 is.
+#' * `type = "region"`: the distributions of the two groups inside one region,
+#'   along the variable used to divide it. The dashed line is the threshold.
+#' * `type = "diagnostics"`: the effective number of particles and the number
+#'   of different trees at each step of the computation.
+#'
+#' @param x Result of [compare_pt()].
+#' @param type `"tree"`, `"region"` or `"diagnostics"`.
+#' @param node For `type = "region"`: the `node_id` of the region to show (see
+#'   [regions()]). By default, the region with the largest `prob_difference`.
+#' @param max_depth For `type = "tree"`: show the tree down to this depth (0 to
+#'   6). A `+` marks nodes whose subregions are not shown.
+#' @param ... Graphical parameters such as `main` (not used for
+#'   `type = "diagnostics"`).
+#' @return The data shown, invisibly.
 #' @examples
 #' set.seed(1)
-#' fit <- compare_pt(matrix(rnorm(120), ncol = 2), matrix(rnorm(120, 0.6), ncol = 2),
-#'                   control = pt_control(particles = 32, effect_draws = 256),
-#'                   prior = pt_prior(max_depth = 3, split_grid = 3))
+#' x <- matrix(rnorm(200), ncol = 2)
+#' y <- matrix(rnorm(200, mean = 0.8), ncol = 2)
+#' fit <- compare_pt(x, y, control = pt_control(particles = 32))
 #' plot(fit)
 #' plot(fit, type = "region")
 #' plot(fit, type = "diagnostics")

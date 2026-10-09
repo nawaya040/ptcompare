@@ -34,6 +34,7 @@ source("examples/01-local-shift.R")
 
 | ファイル | 確認できること |
 | --- | --- |
+| `examples/00-tryout.R` | 試用スクリプト。基本操作、結果の読み方、iris での実データ例、設定の変え方を順に実行（全体で約10秒） |
 | `examples/01-local-shift.R` | 既知の部分集団だけに分布差がある2変量データ。実行はこのPCで約10秒程度 |
 | `examples/02-dependence-and-null.R` | 周辺分布が同じで相関だけが異なる例と、帰無分布の例 |
 | `examples/03-stability.R` | 同じデータ・同じモデルで粒子数と乱数seedを変えて実行 |

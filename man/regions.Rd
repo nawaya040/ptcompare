@@ -2,40 +2,67 @@
 % Please edit documentation in R/methods.R
 \name{regions}
 \alias{regions}
-\title{Extract local differences on the representative tree}
+\title{Regions where the two groups differ}
 \usage{
 regions(x, prob = 0.5, min_n = 0L, ...)
 }
 \arguments{
-\item{x}{Fitted comparison.}
+\item{x}{Result of \code{\link[=compare_pt]{compare_pt()}}.}
 
-\item{prob}{Minimum local posterior difference probability. This is an
-exploratory filter, not a p-value or a frequentist error guarantee.}
+\item{prob}{Show only rows with \code{prob_difference} at least this value
+(between 0 and 1). Use \code{prob = 0} to show all divisions.}
 
-\item{min_n}{Minimum pooled region size.}
+\item{min_n}{Show only regions with at least this many observations (both
+groups together).}
 
-\item{...}{Reserved; must be empty.}
+\item{...}{Not used.}
 }
 \value{
-A data frame of internal nodes, ordered by \code{prob_difference} and then
-\code{effect_abs}, with columns \code{node_id}, \code{parent_id}, \code{depth}, \code{condition}
-(the region, in original units), \code{variable} and \code{threshold} (the split
-inside the region; \code{variable <= threshold} is the left child), \code{n1}, \code{n2},
-\code{prob_difference} (posterior probability that the two groups differ in
-this split), \code{effect} (posterior mean of the group 1 minus group 2 log odds
-ratio of the left child), \code{effect_abs} (posterior mean absolute log odds
-ratio), \code{lower} and \code{upper} (95\% credible interval including the zero
-point mass) and \code{prob_positive} (posterior probability of a positive log
-odds ratio). Regions may overlap through ancestor/descendant nesting.
-Effects and intervals condition on the representative tree.
+A data frame with one row per division, sorted by
+\code{prob_difference} (largest first). Columns:
+\describe{
+\item{\code{node_id}, \code{parent_id}, \code{depth}}{Position of the region in the
+tree (as in \code{plot(fit)}); depth 0 is the whole data space.}
+\item{\code{condition}}{The region, as conditions on the variables.}
+\item{\code{variable}, \code{threshold}}{The division: the left part is
+\code{variable <= threshold}.}
+\item{\code{n1}, \code{n2}}{Number of observations of group 1 and group 2 in the
+region.}
+\item{\code{prob_difference}}{Posterior probability that the two groups
+fall into the left part in different proportions.}
+\item{\code{effect}}{Size and direction of the difference: the log odds
+ratio of falling into the left part, group 1 versus group 2 (posterior
+mean). Positive values mean group 1 is more likely to be in the left
+part; negative values mean group 2 is.}
+\item{\code{effect_abs}}{Posterior mean of the absolute log odds ratio: the
+size of the difference regardless of direction.}
+\item{\code{lower}, \code{upper}}{95\% credible interval for the log odds ratio.
+A limit is exactly 0 when the groups may not differ at this division.}
+\item{\code{prob_positive}}{Posterior probability that group 1 is more
+likely than group 2 to be in the left part.}
+}
 }
 \description{
-Extract local differences on the representative tree
+Lists the divisions of the representative tree and how much the two groups
+differ at each one. Use it to find where, and in which direction, the
+distributions differ.
+}
+\details{
+Each row is one division of a region into two parts. Inside the region
+described by \code{condition}, the observations are divided into those with
+\code{variable <= threshold} (the left part) and the rest (the right part). The
+row tells whether the two groups fall into the left part in different
+proportions.
 }
 \examples{
 set.seed(1)
-fit <- compare_pt(matrix(rnorm(120), ncol = 2), matrix(rnorm(120, 0.6), ncol = 2),
-                  control = pt_control(particles = 32, effect_draws = 256),
-                  prior = pt_prior(max_depth = 3, split_grid = 3))
-regions(fit, prob = 0)
+x <- matrix(rnorm(200), ncol = 2)
+y <- matrix(rnorm(200, mean = 0.8), ncol = 2)
+fit <- compare_pt(x, y, control = pt_control(particles = 32))
+regions(fit)
+regions(fit, prob = 0.9, min_n = 30)
+}
+\seealso{
+\code{\link[=compare_pt]{compare_pt()}}, \code{plot(fit, type = "region", node = ...)} to see the
+data of one region.
 }

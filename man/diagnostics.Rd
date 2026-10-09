@@ -7,24 +7,48 @@
 diagnostics(x, ...)
 }
 \arguments{
-\item{x}{Fitted comparison.}
+\item{x}{Result of \code{\link[=compare_pt]{compare_pt()}}.}
 
-\item{...}{Reserved; must be empty.}
+\item{...}{Not used.}
 }
 \value{
-A list with the ESS trajectory, resampling counts, particle weights,
-ancestry, stopping diagnostics and timing. Payload bytes measure retained
-particle structures at iteration boundaries, excluding allocator overhead,
-temporary allocations, input data and R output; this is not peak process RSS.
-It is measured at SMC steps 1, 2, 4, 8, ... and at the end.
+A list with components:
+\describe{
+\item{\code{final_ess}}{Effective number of particles at the end (at most
+\code{particles}).}
+\item{\code{resamples}}{Number of resampling steps.}
+\item{\code{elapsed_seconds}}{Running time of \code{\link[=compare_pt]{compare_pt()}} in seconds.}
+\item{\code{trace}}{Data frame with one row per step of the computation:
+effective number of particles before resampling (\code{ess}), number of
+different trees (\code{unique_trees}), number of distinct initial
+particles that the current particles descend from
+(\code{root_ancestors}), and whether resampling took place (\code{resampled}).}
+\item{\code{weights}, \code{particle_null}, \code{particle_scores}}{For each final
+particle: its weight, its probability that the groups are the same,
+and the fit score used to choose the representative tree.}
+\item{\code{log_evidence}}{Estimated log marginal likelihood of the data.}
+\item{\code{depth_limited_leaves}, \code{depth_limited_fraction}}{Number of
+regions of the representative tree that reached \code{max_depth} with at
+least \code{min_node} observations, and the fraction of observations in
+them.}
+\item{\code{numerical_stop_leaves}}{Number of regions too narrow to divide
+further.}
+\item{\code{unique_proposals}, \code{peak_particle_payload_bytes}}{Number of
+distinct division steps computed, and the approximate memory used by
+the particles (bytes).}
+}
 }
 \description{
-Computational diagnostics
+Information about the computation of \code{\link[=compare_pt]{compare_pt()}}, such as the number of
+effective particles and the running time. \code{plot(fit, type = "diagnostics")}
+shows the main quantities as graphs.
 }
 \examples{
 set.seed(1)
-fit <- compare_pt(matrix(rnorm(120), ncol = 2), matrix(rnorm(120, 0.6), ncol = 2),
-                  control = pt_control(particles = 32, effect_draws = 256),
-                  prior = pt_prior(max_depth = 3, split_grid = 3))
-diagnostics(fit)$final_ess
+x <- matrix(rnorm(200), ncol = 2)
+y <- matrix(rnorm(200, mean = 0.8), ncol = 2)
+fit <- compare_pt(x, y, control = pt_control(particles = 32))
+d <- diagnostics(fit)
+d$final_ess
+d$elapsed_seconds
 }

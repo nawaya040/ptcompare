@@ -4,7 +4,7 @@
 \alias{summary.ptcompare_fit}
 \alias{print.ptcompare_fit}
 \alias{print.summary.ptcompare_fit}
-\title{Print and summarize a comparison}
+\title{Summarize a comparison}
 \usage{
 \method{print}{ptcompare_fit}(x, ...)
 
@@ -13,25 +13,29 @@
 \method{print}{summary.ptcompare_fit}(x, ...)
 }
 \arguments{
-\item{x, object}{Fitted comparison, or its summary.}
+\item{x, object}{Result of \code{\link[=compare_pt]{compare_pt()}} (or of \code{summary()}).}
 
-\item{...}{Ignored.}
+\item{...}{Not used.}
 
-\item{top}{Number of local regions to show, ordered as in \code{\link[=regions]{regions()}}.}
+\item{top}{Number of divisions to show.}
 }
 \value{
-\code{summary()} returns an object of class \code{summary.ptcompare_fit} with
-the global probabilities, settings, diagnostics and the \code{top} rows of
-\code{\link[=regions]{regions()}} (\code{regions}). The print methods return their argument invisibly.
+\code{summary()} returns a \code{summary.ptcompare_fit} object, which is
+printed. Its component \code{regions} holds the divisions shown. \code{print()}
+returns its argument invisibly.
 }
 \description{
-Print and summarize a comparison
+\code{print(fit)} shows the posterior probability that the two distributions
+differ. \code{summary(fit)} also shows the settings, a short report of the
+computation and the divisions with the largest \code{prob_difference} (see
+\code{\link[=regions]{regions()}} for the meaning of the columns).
 }
 \examples{
 set.seed(1)
-fit <- compare_pt(matrix(rnorm(120), ncol = 2), matrix(rnorm(120, 0.6), ncol = 2),
-                  control = pt_control(particles = 32, effect_draws = 256),
-                  prior = pt_prior(max_depth = 3, split_grid = 3))
+x <- matrix(rnorm(200), ncol = 2)
+y <- matrix(rnorm(200, mean = 0.8), ncol = 2)
+fit <- compare_pt(x, y, control = pt_control(particles = 32))
 fit
+summary(fit)
 summary(fit, top = 3)
 }

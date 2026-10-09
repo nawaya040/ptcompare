@@ -2,7 +2,7 @@
 % Please edit documentation in R/api.R
 \name{pt_prior}
 \alias{pt_prior}
-\title{Finite hidden Markov Polya tree specification}
+\title{Model settings}
 \usage{
 pt_prior(
   max_depth = 8L,
@@ -17,38 +17,51 @@ pt_prior(
 )
 }
 \arguments{
-\item{max_depth}{Maximum split depth (1 to 20); the root has depth zero.}
+\item{max_depth}{Maximum number of successive divisions (1 to 20). Larger
+values allow smaller regions and take longer.}
 
-\item{split_grid}{Odd number (1 to 127) of equally spaced relative split
-candidates k/(split_grid+1).}
+\item{split_grid}{Number of candidate division points for a variable within
+a region (an odd number from 1 to 127). The candidates are equally spaced
+and include the middle of the region.}
 
-\item{min_node}{Nodes with fewer pooled observations are uniform leaves.}
+\item{min_node}{Regions with fewer observations than this (both groups
+together) are not divided further.}
 
-\item{gamma}{Probability parameter for entering the difference state, in (0, 1).}
+\item{gamma}{Prior tendency of the two groups to differ, between 0 and 1.
+Larger values make differences more likely before seeing the data.}
 
-\item{beta}{Depth decay of persistence in the difference state (1 to 100);
-1 gives the transition matrix of Awaya and Ma (2024, Supplement F.2.1).}
+\item{beta}{Number from 1 to 100. Values above 1 make differences in smaller
+(deeper) regions less likely before seeing the data. The default 1
+follows Awaya and Ma (2024).}
 
-\item{prune}{Transition probability into absorbing sharing, in (0, 1).}
+\item{prune}{Prior probability, between 0 and 1, that a region and all its
+subregions are the same in the two groups.}
 
-\item{precision}{Total beta precision (between 1e-6 and 1e6), centered at the geometric split fraction.}
+\item{precision}{Positive number. Larger values make the proportion of
+observations falling on each side of a division closer, before seeing the
+data, to the proportion of the region's width on that side.}
 
-\item{eta}{Concentration (0 to 100) of the split prior around the midpoint. Candidate
-weights are proportional to exp(-eta * pooled_node_size * abs(fraction-0.5)).}
+\item{eta}{Non-negative number. Larger values favor division points closer
+to the middle of a region, more strongly in regions with many
+observations. \code{eta = 0} treats all candidates equally.}
 
-\item{midpoint_spike}{Use the spike-and-slab location prior of Awaya and Ma
-(2024, Appendix A). The midpoint receives its prior mass from the split
-prior above; once a node is divided at the midpoint, all its descendants
-are divided at their midpoints. Set to FALSE for the location prior (2)
-at every node.}
+\item{midpoint_spike}{If \code{TRUE} (default), once a region is divided at its
+middle, all its subregions are also divided at their middles, as in
+Awaya and Ma (2024, Appendix A). If \code{FALSE}, every candidate division
+point is allowed in every region.}
 }
 \value{
-A validated model specification. These settings change the model,
-including the finite resolution and pooled-data stopping rule.
+A \code{pt_prior} object to pass to \code{\link[=compare_pt]{compare_pt()}}.
 }
 \description{
-Finite hidden Markov Polya tree specification
+Settings of the statistical model used by \code{\link[=compare_pt]{compare_pt()}}: how finely the
+data space may be divided into regions, where the divisions may be placed,
+and how likely the two groups are to differ before seeing the data.
 }
 \examples{
+pt_prior()
 pt_prior(max_depth = 6, split_grid = 7)
+}
+\seealso{
+\code{\link[=pt_control]{pt_control()}} for the computational settings.
 }

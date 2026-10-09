@@ -2,7 +2,7 @@
 % Please edit documentation in R/api.R
 \name{pt_control}
 \alias{pt_control}
-\title{Settings for sequential Monte Carlo}
+\title{Computational settings}
 \usage{
 pt_control(
   particles = 256L,
@@ -14,28 +14,42 @@ pt_control(
 )
 }
 \arguments{
-\item{particles}{Number of particles. Increase this to assess Monte Carlo stability.}
+\item{particles}{Number of candidate trees computed in parallel (the
+particles of sequential Monte Carlo). More particles give more accurate
+results but take longer. Try \code{particles = 1024} or more for a final
+analysis.}
 
-\item{ess_threshold}{Resample when ESS is below this fraction of particles.}
+\item{ess_threshold}{Fraction of \code{particles} (between 0 and 1). When the
+effective number of particles falls below this fraction, the particles
+are resampled.}
 
-\item{keep_particles}{Keep every final particle tree (can use substantial memory).}
+\item{keep_particles}{If \code{TRUE}, all final candidate trees are kept in the
+result (component \code{particles}). This can use a lot of memory.}
 
-\item{keep_data}{Store original data for region plots.}
+\item{keep_data}{If \code{TRUE}, the data are kept in the result. They are
+needed for \code{plot(fit, type = "region")}.}
 
-\item{effect_draws}{Deterministic quadrature size for absolute effects and
-intervals (between 256 and 1048576).}
+\item{effect_draws}{Number of points (256 to 1048576) used to compute
+\code{effect_abs}, \code{lower}, \code{upper} and \code{prob_positive} in \code{\link[=regions]{regions()}}.
+Larger values are more accurate and slower.}
 
-\item{resample_power}{Power kappa in (0, 1] of the resampling probabilities.
-Ancestors are drawn with probabilities proportional to W^kappa and receive
-weights proportional to W / W^kappa (Awaya and Ma, 2024, Section 3.1).
-The default 0.5 is the paper's choice; 1 gives standard resampling.}
+\item{resample_power}{Number in (0, 1] used when resampling. Particles are
+drawn with probabilities proportional to their weights raised to this
+power. The default 0.5 follows Awaya and Ma (2024); 1 gives standard
+resampling.}
 }
 \value{
-A validated list of computational settings.
+A \code{pt_control} object to pass to \code{\link[=compare_pt]{compare_pt()}}.
 }
 \description{
-Settings for sequential Monte Carlo
+Settings that control how \code{\link[=compare_pt]{compare_pt()}} carries out its computation.
+They affect accuracy and running time. The defaults are suitable for most
+analyses.
 }
 \examples{
-pt_control(particles = 512)
+pt_control()
+pt_control(particles = 1024)
+}
+\seealso{
+\code{\link[=pt_prior]{pt_prior()}} for the statistical model settings.
 }

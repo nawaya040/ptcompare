@@ -2,7 +2,7 @@
 % Please edit documentation in R/api.R
 \name{compare_pt}
 \alias{compare_pt}
-\title{Compare two multivariate distributions}
+\title{Compare the distributions of two groups}
 \usage{
 compare_pt(
   x,
@@ -15,79 +15,97 @@ compare_pt(
 )
 }
 \arguments{
-\item{x}{Numeric matrix, numeric data frame or numeric vector (one variable)
-for group 1, or pooled data.}
+\item{x}{Data for group 1: a numeric matrix or data frame with one row per
+observation and one column per variable, or a numeric vector for a single
+variable. When \code{group} is used, \code{x} contains the data of both groups.}
 
-\item{y}{Numeric matrix, data frame or vector for group 2. Use either y or group.}
+\item{y}{Data for group 2, with the same columns as \code{x}. Give either \code{y} or
+\code{group}.}
 
-\item{group}{Two-level labels for rows of pooled x. Factor levels set group
-order; other labels use order of first appearance (so \code{c(1, 1, 0, 0)} makes
-"1" group 1). The sign of \code{effect} refers to this order.}
+\item{group}{Group labels for the rows of \code{x}, with exactly two different
+values. For a factor, the first level is group 1. Otherwise, the label
+that appears first is group 1.}
 
-\item{support}{Optional matrix with one row per original variable and two
-columns (lower, upper); a length-two vector is accepted for one variable.
-For range coordinates, omitted support uses pooled ranges padded by 1 percent.}
+\item{support}{Optional known range of the variables: a matrix with one row
+per variable and two columns (lower and upper limit), or a vector
+\code{c(lower, upper)} for a single variable. Used with \code{transform = "range"}.}
 
 \item{prior}{Model settings from \code{\link[=pt_prior]{pt_prior()}}.}
 
 \item{control}{Computational settings from \code{\link[=pt_control]{pt_control()}}.}
 
-\item{transform}{Common coordinate transformation. 'range' uses linear
-scaling. 'rank' maps pooled midranks to the unit interval, preserves ties and stores
-an inverse interpolation for explanations. It changes the partition prior
-on the original scale and conditions on an estimated marginal transform.
-Explicit support is supported only with 'range'.
-'range' is the linear rescaling to the unit cube of Awaya and Ma (2024).
-The default is 'rank' when support is omitted and 'range' when supplied.}
+\item{transform}{How the variables are put on a common scale before
+dividing.
+\itemize{
+\item \code{"rank"} (default when \code{support} is not given): each variable is
+replaced by the rank of its values in both groups combined. Results do
+not change if a variable is transformed monotonically (for example by
+\code{log()}).
+\item \code{"range"} (default when \code{support} is given): each variable is rescaled
+linearly to the interval from 0 to 1, as in Awaya and Ma (2024). Without
+\code{support}, the observed range is extended by 1\% on each side.
+}
+
+In both cases, thresholds and regions are reported in the original units.}
 }
 \value{
-An object of class \code{ptcompare_fit}, a list with components
+A \code{ptcompare_fit} object. Use \link[=summary.ptcompare_fit]{summary()},
+\code{\link[=regions]{regions()}} and \link[=plot.ptcompare_fit]{plot()} to look at the results. Its
+main components are:
 \describe{
-\item{prob_null, prob_difference}{Posterior probability that the two
-distributions are equal, and its complement, under the finite model.}
-\item{tree}{Representative tree, one row per node: \code{node_id}, \code{parent_id},
-\code{left}, \code{right} (child IDs, 0 for leaves), \code{depth}, \code{variable_id},
-\code{variable}, \code{threshold} (original units), \code{cut_unit} and \code{fraction}
-(unit-scale cut and relative split location), \code{n1}, \code{n2},
-\code{prob_difference} (local posterior probability of state D), \code{effect}
-(posterior mean signed log odds ratio), \code{a1}, \code{b1}, \code{a2}, \code{b2} (beta
-posterior parameters under D), \code{stop_reason} and \code{condition}. Split
-columns are NA for leaves. Absolute effects and intervals are computed
-by \code{\link[=regions]{regions()}}.}
-\item{diagnostics}{See \code{\link[=diagnostics]{diagnostics()}}.}
-\item{particles}{With \code{keep_particles = TRUE}, the final particle trees as
-engine tables (unit-scale cuts only, no names or thresholds).}
-\item{group_names, variables, sample_sizes, prior, control, support,
-dropped_variables, support_source, transform, transform_knots, data,
-group, call}{Inputs and preprocessing.}
+\item{\code{prob_difference}}{Posterior probability that the two
+distributions differ.}
+\item{\code{prob_null}}{Posterior probability that they are the same
+(\code{1 - prob_difference}).}
+\item{\code{tree}}{The representative tree, one row per region. \code{\link[=regions]{regions()}}
+gives an easier-to-read table of its divisions.}
+\item{\code{diagnostics}}{Information about the computation; see
+\code{\link[=diagnostics]{diagnostics()}}.}
+\item{\code{group_names}, \code{sample_sizes}, \code{variables}}{Group names, number of
+observations per group and names of the variables used.}
+\item{\code{prior}, \code{control}, \code{transform}}{The settings used.}
 }
 }
 \description{
-Fits a finite adaptive hidden Markov Polya tree comparison. Global evidence
-is averaged over SMC trees. Local summaries are conditional on the sampled
-tree with the largest prior-times-likelihood score, not a guaranteed global
-maximizer. Observations must be independent within and across the two groups.
+Compares the distributions of two groups of observations on one or more
+numeric variables, using the hidden Markov Pólya tree method of Awaya and
+Ma (2024). It gives the posterior probability that the two distributions
+differ, and finds regions of the data space where they differ. Each region
+is described by conditions on the variables, such as \code{age <= 40}.
 }
 \details{
-Terminal regions have common uniform conditional distributions.
-Global equality concerns this finite model. Data-derived support and node
-stopping are conditioned on the pooled data. No group-specific scaling is
-applied. Constant columns are removed with a warning. Missing and non-finite
-observations are rejected. Ties go to the left child at a split. If the
-pooled sample is smaller than \code{min_node}, no split is possible and the
-finite model gives P(equal) = 1; a warning is issued.
+The method divides the data space into regions step by step, building a
+tree of divisions, and compares how the two groups fall on the two sides of
+each division. Many candidate trees are explored; the one that best fits
+the data (the representative tree) is used to describe where the groups
+differ.
+
+Variables that take the same value in all observations are
+removed with a warning. Missing (\code{NA}) and infinite values are not
+allowed; remove those rows first. If there are fewer than \code{min_node}
+observations in total (see \code{\link[=pt_prior]{pt_prior()}}), no division is possible and
+\code{prob_difference} is 0.
 }
 \examples{
 set.seed(1)
-x <- matrix(rnorm(120), ncol = 2)
-y <- matrix(rnorm(120, 0.6), ncol = 2)
-fit <- compare_pt(x, y, control = pt_control(particles = 32),
-                  prior = pt_prior(max_depth = 3, split_grid = 3))
+x <- matrix(rnorm(200), ncol = 2)
+y <- matrix(rnorm(200, mean = 0.8), ncol = 2)
+fit <- compare_pt(x, y, control = pt_control(particles = 32))
+fit
 summary(fit)
-regions(fit, prob = 0)
+
+# Data in one data frame with a group column
+two <- droplevels(subset(iris, Species != "setosa"))
+fit2 <- compare_pt(two[, 1:4], group = two$Species,
+                   control = pt_control(particles = 32))
+regions(fit2, prob = 0.9)
 }
 \references{
-Awaya, N. and Ma, L. (2024). Hidden Markov Polya Trees for
-High-Dimensional Distributions. JASA 119(545), 189--201.
-doi:10.1080/01621459.2022.2105223.
+Awaya, N. and Ma, L. (2024). Hidden Markov Pólya Trees for
+High-Dimensional Distributions. \emph{Journal of the American Statistical
+Association}, 119(545), 189--201. \doi{10.1080/01621459.2022.2105223}
+}
+\seealso{
+\code{\link[=regions]{regions()}}, \link[=summary.ptcompare_fit]{summary()},
+\link[=plot.ptcompare_fit]{plot()}, \code{\link[=pt_prior]{pt_prior()}}, \code{\link[=pt_control]{pt_control()}}
 }

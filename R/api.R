@@ -1,17 +1,32 @@
-#' Settings for sequential Monte Carlo
-#' @param particles Number of particles. Increase this to assess Monte Carlo stability.
-#' @param ess_threshold Resample when ESS is below this fraction of particles.
-#' @param resample_power Power kappa in (0, 1] of the resampling probabilities.
-#'   Ancestors are drawn with probabilities proportional to W^kappa and receive
-#'   weights proportional to W / W^kappa (Awaya and Ma, 2024, Section 3.1).
-#'   The default 0.5 is the paper's choice; 1 gives standard resampling.
-#' @param keep_particles Keep every final particle tree (can use substantial memory).
-#' @param keep_data Store original data for region plots.
-#' @param effect_draws Deterministic quadrature size for absolute effects and
-#'   intervals (between 256 and 1048576).
-#' @return A validated list of computational settings.
+#' Computational settings
+#'
+#' Settings that control how [compare_pt()] carries out its computation.
+#' They affect accuracy and running time. The defaults are suitable for most
+#' analyses.
+#'
+#' @param particles Number of candidate trees computed in parallel (the
+#'   particles of sequential Monte Carlo). More particles give more accurate
+#'   results but take longer. Try `particles = 1024` or more for a final
+#'   analysis.
+#' @param ess_threshold Fraction of `particles` (between 0 and 1). When the
+#'   effective number of particles falls below this fraction, the particles
+#'   are resampled.
+#' @param resample_power Number in (0, 1] used when resampling. Particles are
+#'   drawn with probabilities proportional to their weights raised to this
+#'   power. The default 0.5 follows Awaya and Ma (2024); 1 gives standard
+#'   resampling.
+#' @param keep_particles If `TRUE`, all final candidate trees are kept in the
+#'   result (component `particles`). This can use a lot of memory.
+#' @param keep_data If `TRUE`, the data are kept in the result. They are
+#'   needed for `plot(fit, type = "region")`.
+#' @param effect_draws Number of points (256 to 1048576) used to compute
+#'   `effect_abs`, `lower`, `upper` and `prob_positive` in [regions()].
+#'   Larger values are more accurate and slower.
+#' @return A `pt_control` object to pass to [compare_pt()].
+#' @seealso [pt_prior()] for the statistical model settings.
 #' @examples
-#' pt_control(particles = 512)
+#' pt_control()
+#' pt_control(particles = 1024)
 #' @export
 pt_control <- function(particles = 256L, ess_threshold = 0.5,
                        keep_particles = FALSE, keep_data = TRUE,
@@ -29,26 +44,40 @@ pt_control <- function(particles = 256L, ess_threshold = 0.5,
                  resample_power = resample_power), class = "pt_control")
 }
 
-#' Finite hidden Markov Polya tree specification
-#' @param max_depth Maximum split depth (1 to 20); the root has depth zero.
-#' @param split_grid Odd number (1 to 127) of equally spaced relative split
-#'   candidates k/(split_grid+1).
-#' @param min_node Nodes with fewer pooled observations are uniform leaves.
-#' @param gamma Probability parameter for entering the difference state, in (0, 1).
-#' @param beta Depth decay of persistence in the difference state (1 to 100);
-#'   1 gives the transition matrix of Awaya and Ma (2024, Supplement F.2.1).
-#' @param prune Transition probability into absorbing sharing, in (0, 1).
-#' @param precision Total beta precision (between 1e-6 and 1e6), centered at the geometric split fraction.
-#' @param eta Concentration (0 to 100) of the split prior around the midpoint. Candidate
-#'   weights are proportional to exp(-eta * pooled_node_size * abs(fraction-0.5)).
-#' @param midpoint_spike Use the spike-and-slab location prior of Awaya and Ma
-#'   (2024, Appendix A). The midpoint receives its prior mass from the split
-#'   prior above; once a node is divided at the midpoint, all its descendants
-#'   are divided at their midpoints. Set to FALSE for the location prior (2)
-#'   at every node.
-#' @return A validated model specification. These settings change the model,
-#'   including the finite resolution and pooled-data stopping rule.
+#' Model settings
+#'
+#' Settings of the statistical model used by [compare_pt()]: how finely the
+#' data space may be divided into regions, where the divisions may be placed,
+#' and how likely the two groups are to differ before seeing the data.
+#'
+#' @param max_depth Maximum number of successive divisions (1 to 20). Larger
+#'   values allow smaller regions and take longer.
+#' @param split_grid Number of candidate division points for a variable within
+#'   a region (an odd number from 1 to 127). The candidates are equally spaced
+#'   and include the middle of the region.
+#' @param min_node Regions with fewer observations than this (both groups
+#'   together) are not divided further.
+#' @param gamma Prior tendency of the two groups to differ, between 0 and 1.
+#'   Larger values make differences more likely before seeing the data.
+#' @param beta Number from 1 to 100. Values above 1 make differences in smaller
+#'   (deeper) regions less likely before seeing the data. The default 1
+#'   follows Awaya and Ma (2024).
+#' @param prune Prior probability, between 0 and 1, that a region and all its
+#'   subregions are the same in the two groups.
+#' @param precision Positive number. Larger values make the proportion of
+#'   observations falling on each side of a division closer, before seeing the
+#'   data, to the proportion of the region's width on that side.
+#' @param eta Non-negative number. Larger values favor division points closer
+#'   to the middle of a region, more strongly in regions with many
+#'   observations. `eta = 0` treats all candidates equally.
+#' @param midpoint_spike If `TRUE` (default), once a region is divided at its
+#'   middle, all its subregions are also divided at their middles, as in
+#'   Awaya and Ma (2024, Appendix A). If `FALSE`, every candidate division
+#'   point is allowed in every region.
+#' @return A `pt_prior` object to pass to [compare_pt()].
+#' @seealso [pt_control()] for the computational settings.
 #' @examples
+#' pt_prior()
 #' pt_prior(max_depth = 6, split_grid = 7)
 #' @export
 pt_prior <- function(max_depth = 8L, split_grid = 15L, min_node = 20L,
@@ -70,69 +99,83 @@ pt_prior <- function(max_depth = 8L, split_grid = 15L, min_node = 20L,
                  midpoint_spike = midpoint_spike), class = "pt_prior")
 }
 
-#' Compare two multivariate distributions
+#' Compare the distributions of two groups
 #'
-#' Fits a finite adaptive hidden Markov Polya tree comparison. Global evidence
-#' is averaged over SMC trees. Local summaries are conditional on the sampled
-#' tree with the largest prior-times-likelihood score, not a guaranteed global
-#' maximizer. Observations must be independent within and across the two groups.
+#' Compares the distributions of two groups of observations on one or more
+#' numeric variables, using the hidden Markov Pólya tree method of Awaya and
+#' Ma (2024). It gives the posterior probability that the two distributions
+#' differ, and finds regions of the data space where they differ. Each region
+#' is described by conditions on the variables, such as `age <= 40`.
 #'
-#' @param x Numeric matrix, numeric data frame or numeric vector (one variable)
-#'   for group 1, or pooled data.
-#' @param y Numeric matrix, data frame or vector for group 2. Use either y or group.
-#' @param group Two-level labels for rows of pooled x. Factor levels set group
-#'   order; other labels use order of first appearance (so `c(1, 1, 0, 0)` makes
-#'   "1" group 1). The sign of `effect` refers to this order.
-#' @param support Optional matrix with one row per original variable and two
-#'   columns (lower, upper); a length-two vector is accepted for one variable.
-#'   For range coordinates, omitted support uses pooled ranges padded by 1 percent.
-#' @param transform Common coordinate transformation. 'range' uses linear
-#'   scaling. 'rank' maps pooled midranks to the unit interval, preserves ties and stores
-#'   an inverse interpolation for explanations. It changes the partition prior
-#'   on the original scale and conditions on an estimated marginal transform.
-#'   Explicit support is supported only with 'range'.
-#'   'range' is the linear rescaling to the unit cube of Awaya and Ma (2024).
-#'   The default is 'rank' when support is omitted and 'range' when supplied.
+#' The method divides the data space into regions step by step, building a
+#' tree of divisions, and compares how the two groups fall on the two sides of
+#' each division. Many candidate trees are explored; the one that best fits
+#' the data (the representative tree) is used to describe where the groups
+#' differ.
+#'
+#' @param x Data for group 1: a numeric matrix or data frame with one row per
+#'   observation and one column per variable, or a numeric vector for a single
+#'   variable. When `group` is used, `x` contains the data of both groups.
+#' @param y Data for group 2, with the same columns as `x`. Give either `y` or
+#'   `group`.
+#' @param group Group labels for the rows of `x`, with exactly two different
+#'   values. For a factor, the first level is group 1. Otherwise, the label
+#'   that appears first is group 1.
+#' @param support Optional known range of the variables: a matrix with one row
+#'   per variable and two columns (lower and upper limit), or a vector
+#'   `c(lower, upper)` for a single variable. Used with `transform = "range"`.
+#' @param transform How the variables are put on a common scale before
+#'   dividing.
+#'   * `"rank"` (default when `support` is not given): each variable is
+#'     replaced by the rank of its values in both groups combined. Results do
+#'     not change if a variable is transformed monotonically (for example by
+#'     `log()`).
+#'   * `"range"` (default when `support` is given): each variable is rescaled
+#'     linearly to the interval from 0 to 1, as in Awaya and Ma (2024). Without
+#'     `support`, the observed range is extended by 1% on each side.
+#'
+#'   In both cases, thresholds and regions are reported in the original units.
 #' @param prior Model settings from [pt_prior()].
 #' @param control Computational settings from [pt_control()].
-#' @return An object of class `ptcompare_fit`, a list with components
-#' \describe{
-#'   \item{prob_null, prob_difference}{Posterior probability that the two
-#'     distributions are equal, and its complement, under the finite model.}
-#'   \item{tree}{Representative tree, one row per node: `node_id`, `parent_id`,
-#'     `left`, `right` (child IDs, 0 for leaves), `depth`, `variable_id`,
-#'     `variable`, `threshold` (original units), `cut_unit` and `fraction`
-#'     (unit-scale cut and relative split location), `n1`, `n2`,
-#'     `prob_difference` (local posterior probability of state D), `effect`
-#'     (posterior mean signed log odds ratio), `a1`, `b1`, `a2`, `b2` (beta
-#'     posterior parameters under D), `stop_reason` and `condition`. Split
-#'     columns are NA for leaves. Absolute effects and intervals are computed
-#'     by [regions()].}
-#'   \item{diagnostics}{See [diagnostics()].}
-#'   \item{particles}{With `keep_particles = TRUE`, the final particle trees as
-#'     engine tables (unit-scale cuts only, no names or thresholds).}
-#'   \item{group_names, variables, sample_sizes, prior, control, support,
-#'     dropped_variables, support_source, transform, transform_knots, data,
-#'     group, call}{Inputs and preprocessing.}
-#' }
-#' @details Terminal regions have common uniform conditional distributions.
-#'   Global equality concerns this finite model. Data-derived support and node
-#'   stopping are conditioned on the pooled data. No group-specific scaling is
-#'   applied. Constant columns are removed with a warning. Missing and non-finite
-#'   observations are rejected. Ties go to the left child at a split. If the
-#'   pooled sample is smaller than `min_node`, no split is possible and the
-#'   finite model gives P(equal) = 1; a warning is issued.
-#' @references Awaya, N. and Ma, L. (2024). Hidden Markov Polya Trees for
-#'   High-Dimensional Distributions. JASA 119(545), 189--201.
-#'   doi:10.1080/01621459.2022.2105223.
+#' @return A `ptcompare_fit` object. Use [summary()][summary.ptcompare_fit],
+#'   [regions()] and [plot()][plot.ptcompare_fit] to look at the results. Its
+#'   main components are:
+#'   \describe{
+#'     \item{`prob_difference`}{Posterior probability that the two
+#'       distributions differ.}
+#'     \item{`prob_null`}{Posterior probability that they are the same
+#'       (`1 - prob_difference`).}
+#'     \item{`tree`}{The representative tree, one row per region. [regions()]
+#'       gives an easier-to-read table of its divisions.}
+#'     \item{`diagnostics`}{Information about the computation; see
+#'       [diagnostics()].}
+#'     \item{`group_names`, `sample_sizes`, `variables`}{Group names, number of
+#'       observations per group and names of the variables used.}
+#'     \item{`prior`, `control`, `transform`}{The settings used.}
+#'   }
+#' @details Variables that take the same value in all observations are
+#'   removed with a warning. Missing (`NA`) and infinite values are not
+#'   allowed; remove those rows first. If there are fewer than `min_node`
+#'   observations in total (see [pt_prior()]), no division is possible and
+#'   `prob_difference` is 0.
+#' @references Awaya, N. and Ma, L. (2024). Hidden Markov Pólya Trees for
+#'   High-Dimensional Distributions. *Journal of the American Statistical
+#'   Association*, 119(545), 189--201. \doi{10.1080/01621459.2022.2105223}
+#' @seealso [regions()], [summary()][summary.ptcompare_fit],
+#'   [plot()][plot.ptcompare_fit], [pt_prior()], [pt_control()]
 #' @examples
 #' set.seed(1)
-#' x <- matrix(rnorm(120), ncol = 2)
-#' y <- matrix(rnorm(120, 0.6), ncol = 2)
-#' fit <- compare_pt(x, y, control = pt_control(particles = 32),
-#'                   prior = pt_prior(max_depth = 3, split_grid = 3))
+#' x <- matrix(rnorm(200), ncol = 2)
+#' y <- matrix(rnorm(200, mean = 0.8), ncol = 2)
+#' fit <- compare_pt(x, y, control = pt_control(particles = 32))
+#' fit
 #' summary(fit)
-#' regions(fit, prob = 0)
+#'
+#' # Data in one data frame with a group column
+#' two <- droplevels(subset(iris, Species != "setosa"))
+#' fit2 <- compare_pt(two[, 1:4], group = two$Species,
+#'                    control = pt_control(particles = 32))
+#' regions(fit2, prob = 0.9)
 #' @export
 compare_pt <- function(x, y = NULL, group = NULL, support = NULL,
                        prior = pt_prior(), control = pt_control(),
@@ -161,8 +204,8 @@ compare_pt <- function(x, y = NULL, group = NULL, support = NULL,
   }, numeric(1))
   tree$condition <- .pt_conditions(tree)
   if (!any(internal))
-    warning("No split was possible (pooled sample size below 'min_node'); ",
-            "the finite model gives P(equal) = 1.", call. = FALSE)
+    warning("No split was possible: there are fewer observations than 'min_node' ",
+            "(see ?pt_prior). prob_difference is 0.", call. = FALSE)
   stopped <- tree$left == 0 & tree$depth == prior$max_depth &
     tree$n1 + tree$n2 >= prior$min_node
   out <- list(call = match.call(), prob_null = raw$prob_null,

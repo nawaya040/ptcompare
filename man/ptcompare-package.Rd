@@ -4,12 +4,31 @@
 \name{ptcompare-package}
 \alias{ptcompare}
 \alias{ptcompare-package}
-\title{Bayesian multiscale two-sample comparison}
+\title{ptcompare: compare the distributions of two groups}
 \description{
-Bayesian comparison of two multivariate distributions using hidden Markov Polya trees with adaptive partitions, following Awaya and Ma (2024) \doi{10.1080/01621459.2022.2105223}. Provides posterior evidence for overall differences, interpretable partition trees, local effect sizes and computational diagnostics. Posterior computation combines sequential Monte Carlo and recursive message passing.
+Compares the distributions of two groups of observations on numeric
+variables and finds the regions where they differ, using the hidden Markov
+Pólya tree method of Awaya and Ma (2024).
+}
+\details{
+A typical analysis:
+\enumerate{
+\item \code{fit <- compare_pt(x, y)} compares group 1 (\code{x}) with group 2 (\code{y}).
+\item \code{fit} or \code{summary(fit)} shows the posterior probability that the
+distributions differ.
+\item \code{regions(fit, prob = 0.9)} lists the regions where the groups differ.
+\item \code{plot(fit)} and \code{plot(fit, type = "region")} show the results.
+}
+
+Settings are changed with \code{\link[=pt_prior]{pt_prior()}} (statistical model) and
+\code{\link[=pt_control]{pt_control()}} (computation).
+}
+\references{
+Awaya, N. and Ma, L. (2024). Hidden Markov Pólya Trees for
+High-Dimensional Distributions. \emph{Journal of the American Statistical
+Association}, 119(545), 189--201. \doi{10.1080/01621459.2022.2105223}
 }
 \author{
 \strong{Maintainer}: Naoki Awaya \email{nawaya@waseda.jp}
 
 }
-\keyword{internal}
