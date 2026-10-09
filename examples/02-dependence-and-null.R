@@ -22,4 +22,3 @@ print(summary(null_fit))
 plot(null_fit)
 
 # P(different) is a posterior probability under the finite model, not a p-value.
-# One null example is illustrative; see evaluation/REPORT.md for repeated trials.

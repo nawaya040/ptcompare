@@ -16,10 +16,10 @@ minimum and maximum. Ties remain tied. A stored monotone piecewise-linear
 inverse returns cutpoints to the original measurement scale; observed region
 membership is preserved. This alternative changes the geometric tree prior and
 the original-scale terminal distributions. Posterior probabilities condition on
-the estimated transform, and are empirically assessed under simulated nulls.
-It is not an assertion of a full Bayesian posterior for marginal transformation
-uncertainty. Following empirical evaluation, the default is 'rank' when support
-is omitted, and 'range' when support is explicitly supplied. The choice is
+the estimated transform; they do not integrate over marginal transformation
+uncertainty. transform='range' is the linear rescaling to the unit cube used in
+Awaya and Ma (2024). The default is 'rank' when support is omitted, and 'range'
+when support is explicitly supplied. The choice is
 stored and printed; transform='range' can always be requested explicitly.
 
 ## Tree and state model
@@ -44,13 +44,7 @@ target under this modified location prior. The engine therefore samples the
 split from the joint proposal over all allowed (variable, location) pairs; the
 marginal of R is the Bernoulli(r~(A)) of Appendix A.2 and the incremental
 weight is w_t(T_{t-1}, R^p_t). midpoint_spike=FALSE uses (2) at every node.
-
-Because r(A) is the prior (2) mass at 1/2, it grows with n_A: with eta=0.1 and
-L=15 it is 0.17, 0.56 and 0.95 for n_A=50, 200 and 600. For large samples the
-root is then usually divided at its midpoint and the whole tree is dyadic, as
-in Wong and Ma (2010); off-midpoint locations remain possible only below an
-off-midpoint ancestor. The spike reduces computation in such regions, which is
-the purpose stated in the paper. The legacy HMPT code is not the specification.
+The legacy HMPT code is not the specification.
 
 The internal state is D (different), S (shared), or A (absorbing shared). At depth k,
 transition rows for parent D and S respectively are
@@ -125,9 +119,7 @@ of points is reported in control$effect_draws and can be increased independently
 
 All region effects and intervals condition on the selected tree. Filtering nodes
 by probability is exploratory and does not provide a frequentist FDR guarantee.
-Nested regions overlap. Posterior probabilities are not p-values. Independent
-SMC reruns assess algorithmic stability; they do not integrate tree selection
-uncertainty into conditional local intervals.
+Nested regions overlap. Posterior probabilities are not p-values.
 
 ## Computation and verification
 
@@ -145,8 +137,7 @@ exchange, row reordering, ties, endpoints, inverse transforms and public APIs.
 Diagnostics include ESS BEFORE resampling, final weights, root ancestor count,
 distinct tree count, finite-depth stopping and runtime. Particle payload counts
 retained C++ nodes and observation blocks at iteration boundaries; it excludes
-temporary objects and R memory and is not a process memory peak. High ESS does
-not guarantee diverse ancestry, convergence, or stable interpretation.
+temporary objects and R memory and is not a process memory peak.
 
 Reference: Awaya and Ma (2024), JASA 119(545), 189--201,
 doi:10.1080/01621459.2022.2105223. The MRS state model builds on Soriano and Ma
