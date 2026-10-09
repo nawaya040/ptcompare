@@ -47,3 +47,13 @@ evaluation, with runnable RStudio examples. No CRAN submission.
   Normal build env PATH prepend C:/rtools45/usr/bin and
   C:/rtools45/x86_64-w64-mingw32.static.posix/bin, LC_ALL=C. R_MAKEVARS_USER is
   unnecessary outside sandbox. Final .local-library lives inside project.
+
+## 2026-10-09
+
+- Plots: `type = "tree"` (default), `"regions"` (largest differences, scatter
+  panels for d >= 2, histograms for d = 1; filters prob >= 0.5 and min_n = 50
+  per group, rank_by = "probability"), `"levels"` (d = 2 only), and
+  `"diagnostics"`. `type = "region"` was merged into `"regions"` (`node =`).
+- Pending (user decision): figures that potential users see first, such as in
+  a vignette or the README, should show data with two or more variables
+  (scatter-type `regions`/`levels` plots), not one-variable histograms.

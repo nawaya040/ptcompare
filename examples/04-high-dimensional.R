@@ -13,7 +13,7 @@ set.seed(502)
 rank_fit <- compare_pt(x,y,transform="rank")
 print(summary(rank_fit))
 plot(rank_fit)
-plot(rank_fit,type="region")
+plot(rank_fit,type="regions")
 
 # Linear rescaling to the unit cube, as in Awaya and Ma (2024).
 set.seed(502)

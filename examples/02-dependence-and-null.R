@@ -10,7 +10,7 @@ set.seed(62)
 dependence_fit <- compare_pt(x, y, transform = "range")
 print(summary(dependence_fit))
 plot(dependence_fit)
-plot(dependence_fit, type = "region")
+plot(dependence_fit, type = "regions")
 
 # Independent samples from the same distribution.
 set.seed(63)

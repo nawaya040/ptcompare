@@ -6,49 +6,93 @@
 \usage{
 \method{plot}{ptcompare_fit}(
   x,
-  type = c("tree", "region", "diagnostics"),
+  type = c("tree", "regions", "levels", "diagnostics"),
   node = NULL,
   max_depth = 3L,
+  top = 9L,
+  prob = 0.5,
+  rank_by = c("probability", "effect"),
+  min_n = 50L,
   ...
 )
 }
 \arguments{
 \item{x}{Result of \code{\link[=compare_pt]{compare_pt()}}.}
 
-\item{type}{\code{"tree"}, \code{"region"} or \code{"diagnostics"}.}
+\item{type}{\code{"tree"}, \code{"regions"}, \code{"levels"} or \code{"diagnostics"}.}
 
-\item{node}{For \code{type = "region"}: the \code{node_id} of the region to show (see
-\code{\link[=regions]{regions()}}). By default, the region with the largest \code{prob_difference}.}
+\item{node}{For \code{type = "regions"}: \code{node_id}s of regions to show (see
+\code{\link[=regions]{regions()}}), instead of choosing them by \code{prob}, \code{min_n} and \code{rank_by}.
+A single region is drawn as one large panel.}
 
 \item{max_depth}{For \code{type = "tree"}: show the tree down to this depth (0 to
-6). A \code{+} marks nodes whose subregions are not shown.}
+6; default 3). A \code{+} marks nodes whose subregions are not shown. For
+\code{type = "levels"}: the deepest level shown (default: all levels, at most 8).}
 
-\item{...}{Graphical parameters such as \code{main} (not used for
-\code{type = "diagnostics"}).}
+\item{top}{For \code{type = "regions"}: maximum number of regions to show.}
+
+\item{prob}{For \code{type = "regions"}: show only regions with
+\code{prob_difference} at least this value.}
+
+\item{rank_by}{For \code{type = "regions"}: which regions to show first.
+\code{"probability"} (default): largest \code{prob_difference}, the posterior
+probability of a difference. \code{"effect"}: largest \code{effect_abs}, the size of
+the difference (see \code{\link[=regions]{regions()}}).}
+
+\item{min_n}{For \code{type = "regions"}: show only regions with at least this
+many observations of each group.}
+
+\item{...}{Graphical parameters such as \code{main} (for \code{"tree"}, and for
+\code{"regions"} with a single region).}
 }
 \value{
 The data shown, invisibly.
 }
 \description{
-Three kinds of plots:
+Four kinds of plots:
 \itemize{
 \item \code{type = "tree"} (default): the representative tree. Each node is a
 region, labeled with its division (\code{variable <= threshold}) and
 \code{prob_difference}. Larger nodes contain more observations. The color
 shows the direction of the difference: blue when group 1 is more likely
 to be in the left part, brown when group 2 is.
-\item \code{type = "region"}: the distributions of the two groups inside one region,
-along the variable used to divide it. The dashed line is the threshold.
+\item \code{type = "regions"}: the regions where the two groups differ most, one
+panel per region (similar to Figure 14 of the supplement of Awaya and Ma,
+2024). The regions are those of \code{\link[=regions]{regions()}} with \code{prob_difference} at
+least \code{prob} and at least \code{min_n} observations of each group, ordered by
+\code{rank_by}; at most \code{top} are shown. With two or more variables, each
+panel is a scatter plot: the horizontal axis is the variable that divides
+the region (dashed line: threshold), the vertical axis another variable
+that bounds the region. The box is the region; observations inside it
+are shown as blue squares (group 1) and brown triangles (group 2), the
+others in gray. With one variable, each panel shows the distributions of
+the two groups inside the region.
+\item \code{type = "levels"}: for two variables only. One scatter plot per depth of
+the tree; each region at that depth is shaded by its \code{prob_difference}
+(as in Figure 7 of Soriano and Ma, 2017). Dotted lines show how each
+region is divided at the next depth.
 \item \code{type = "diagnostics"}: the effective number of particles and the number
 of different trees at each step of the computation.
 }
 }
+\details{
+\code{"regions"} and \code{"levels"} need the data, which are kept unless
+\code{pt_control(keep_data = FALSE)} was used.
+}
 \examples{
 set.seed(1)
-x <- matrix(rnorm(200), ncol = 2)
-y <- matrix(rnorm(200, mean = 0.8), ncol = 2)
+x <- matrix(rnorm(400), ncol = 2)
+y <- matrix(rnorm(400, mean = 0.8), ncol = 2)
 fit <- compare_pt(x, y, control = pt_control(particles = 32))
 plot(fit)
-plot(fit, type = "region")
+plot(fit, type = "regions")
+plot(fit, type = "regions", top = 4, rank_by = "effect")
+plot(fit, type = "regions", node = 2)
+plot(fit, type = "levels", max_depth = 3)
 plot(fit, type = "diagnostics")
+}
+\references{
+Soriano, J. and Ma, L. (2017). Probabilistic multi-resolution
+scanning for two-sample differences. \emph{Journal of the Royal Statistical
+Society, Series B}, 79(2), 547--572. \doi{10.1111/rssb.12180}
 }

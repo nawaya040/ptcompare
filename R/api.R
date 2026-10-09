@@ -18,7 +18,7 @@
 #' @param keep_particles If `TRUE`, all final candidate trees are kept in the
 #'   result (component `particles`). This can use a lot of memory.
 #' @param keep_data If `TRUE`, the data are kept in the result. They are
-#'   needed for `plot(fit, type = "region")`.
+#'   needed for `plot(fit, type = "regions")` and `plot(fit, type = "levels")`.
 #' @param effect_draws Number of points (256 to 1048576) used to compute
 #'   `effect_abs`, `lower`, `upper` and `prob_positive` in [regions()].
 #'   Larger values are more accurate and slower.

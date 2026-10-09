@@ -17,7 +17,7 @@ A typical analysis:
 \item \code{fit} or \code{summary(fit)} shows the posterior probability that the
 distributions differ.
 \item \code{regions(fit, prob = 0.9)} lists the regions where the groups differ.
-\item \code{plot(fit)} and \code{plot(fit, type = "region")} show the results.
+\item \code{plot(fit)} and \code{plot(fit, type = "regions")} show the results.
 }
 
 Settings are changed with \code{\link[=pt_prior]{pt_prior()}} (statistical model) and

@@ -70,14 +70,21 @@ test_that("log-gamma effect quadrature matches known moments", {
 test_that("plots work with and without stored data", {
   set.seed(3); x <- matrix(rnorm(80),ncol=2); y <- x+.6
   a <- compare_pt(x,y,control=pt_control(particles=16,effect_draws=256),prior=pt_prior(max_depth=3,split_grid=3))
+  b <- compare_pt(x[,1],y[,1],control=pt_control(particles=16,effect_draws=256),prior=pt_prior(max_depth=3,split_grid=3))
   path <- tempfile(fileext=".pdf"); grDevices::pdf(path)
   on.exit({grDevices::dev.off(); unlink(path)})
   state <- .Random.seed
-  expect_silent(plot(a)); expect_silent(plot(a,type="region")); expect_silent(plot(a,type="diagnostics"))
-  expect_silent(plot(a,main="custom")); expect_silent(plot(a,type="region",main="custom"))
+  expect_silent(plot(a)); expect_silent(plot(a,type="regions",prob=0,min_n=0)); expect_silent(plot(a,type="diagnostics"))
+  expect_silent(plot(a,main="custom")); expect_silent(plot(a,type="regions",node=1,main="custom"))
+  expect_silent(plot(a,type="regions",node=c(1,2)))
+  expect_message(plot(a,type="regions",prob=1,min_n=1000),"No region")
+  expect_error(plot(a,type="regions",node=nrow(a$tree)),"node_id")
+  expect_silent(plot(a,type="regions",top=4,prob=0,min_n=2)); expect_silent(plot(a,type="levels"))
+  expect_silent(plot(b,type="regions",prob=0,min_n=0)); expect_silent(plot(b,type="regions",node=1))
+  expect_error(plot(b,type="levels"),"two variables")
   expect_output(print(a,digits=3),"P\\(distributions differ\\)")
   expect_identical(.Random.seed,state)
-  a$data <- NULL; expect_error(plot(a,type="region"),"keep_data")
+  a$data <- NULL; expect_error(plot(a,type="regions"),"keep_data")
 })
 
 test_that("extreme nested boundary splits terminate safely", {

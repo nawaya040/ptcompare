@@ -12,8 +12,8 @@ regions(x, prob = 0.5, min_n = 0L, ...)
 \item{prob}{Show only rows with \code{prob_difference} at least this value
 (between 0 and 1). Use \code{prob = 0} to show all divisions.}
 
-\item{min_n}{Show only regions with at least this many observations (both
-groups together).}
+\item{min_n}{Show only regions with at least this many observations of
+each group.}
 
 \item{...}{Not used.}
 }
@@ -60,9 +60,9 @@ x <- matrix(rnorm(200), ncol = 2)
 y <- matrix(rnorm(200, mean = 0.8), ncol = 2)
 fit <- compare_pt(x, y, control = pt_control(particles = 32))
 regions(fit)
-regions(fit, prob = 0.9, min_n = 30)
+regions(fit, prob = 0.9, min_n = 20)
 }
 \seealso{
-\code{\link[=compare_pt]{compare_pt()}}, \code{plot(fit, type = "region", node = ...)} to see the
-data of one region.
+\code{\link[=compare_pt]{compare_pt()}}; \code{plot(fit, type = "regions")} draws these regions
+with the data.
 }

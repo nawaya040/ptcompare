@@ -33,8 +33,21 @@ reg[, c("node_id", "condition", "variable", "threshold", "n1", "n2",
 # condition の領域の中で「variable <= threshold」の側へ入る確率を群間で比べています。
 # effect は群1対群2の log odds ratio（正なら群1の方が左側へ入りやすい）。
 
-plot(fit, type = "region")                         # 最も確率の高い領域
-plot(fit, type = "region", node = reg$node_id[2])  # 2番目の領域
+# region の図: 枠がその領域、破線が threshold。枠内の観測を群ごとの記号（青四角=群1、
+# 茶三角=群2）、枠外の観測を灰色で描きます。
+plot(fit, type = "regions", node = reg$node_id[1])  # 最も確率の高い領域だけを大きく
+plot(fit, type = "regions", node = reg$node_id[1:2]) # 指定した領域を並べる
+
+# 差の大きい領域を並べて表示（論文Supplement Figure 14の形式）。
+# 既定では差の事後確率（prob_difference）の大きい順に、各群50観測以上の領域を選びます。
+plot(fit, type = "regions")
+plot(fit, type = "regions", top = 4, min_n = 100)
+# 効果量（effect_abs）の大きい順に選ぶ場合
+plot(fit, type = "regions", rank_by = "effect")
+
+# 2変数のときだけ: 木の深さごとに、領域を差の確率の濃淡で塗った図
+# （Soriano and Ma, 2017, Figure 7 の形式）
+plot(fit, type = "levels")
 
 # 3. 差がないデータでは ---------------------------------------------------
 set.seed(3)
@@ -51,7 +64,7 @@ set.seed(5)
 fit_iris <- compare_pt(two[, 1:4], group = two$Species)
 summary(fit_iris)
 plot(fit_iris)
-plot(fit_iris, type = "region")
+plot(fit_iris, type = "regions", min_n = 5)
 
 # 5. 設定を変える ------------------------------------------------------------
 # 計算の設定（近似精度）: pt_control()
@@ -87,5 +100,5 @@ plot(fit, type = "diagnostics")
 # 一つの data.frame と群ラベルで渡す場合（ラベルは2種類）:
 #   fit_my <- compare_pt(mydata[, c("var1", "var2", "var3")], group = mydata$group)
 # 結果の確認:
-#   summary(fit_my); regions(fit_my, prob = 0.9); plot(fit_my); plot(fit_my, type = "region")
+#   summary(fit_my); regions(fit_my, prob = 0.9); plot(fit_my); plot(fit_my, type = "regions")
 # 欠測値（NA）を含む行は事前に除いてください。

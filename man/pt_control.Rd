@@ -27,7 +27,7 @@ are resampled.}
 result (component \code{particles}). This can use a lot of memory.}
 
 \item{keep_data}{If \code{TRUE}, the data are kept in the result. They are
-needed for \code{plot(fit, type = "region")}.}
+needed for \code{plot(fit, type = "regions")} and \code{plot(fit, type = "levels")}.}
 
 \item{effect_draws}{Number of points (256 to 1048576) used to compute
 \code{effect_abs}, \code{lower}, \code{upper} and \code{prob_positive} in \code{\link[=regions]{regions()}}.

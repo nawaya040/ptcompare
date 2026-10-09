@@ -9,7 +9,7 @@
 #' 2. `fit` or `summary(fit)` shows the posterior probability that the
 #'    distributions differ.
 #' 3. `regions(fit, prob = 0.9)` lists the regions where the groups differ.
-#' 4. `plot(fit)` and `plot(fit, type = "region")` show the results.
+#' 4. `plot(fit)` and `plot(fit, type = "regions")` show the results.
 #'
 #' Settings are changed with [pt_prior()] (statistical model) and
 #' [pt_control()] (computation).

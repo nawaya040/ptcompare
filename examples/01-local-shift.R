@@ -18,12 +18,12 @@ print(region_table)
 
 # The RStudio Plots pane retains previous plots (use its back arrow).
 plot(fit, max_depth = 3)
-plot(fit, type = "region")
+plot(fit, type = "regions")
 plot(fit, type = "diagnostics")
 
 # Inspect the generated objects in Environment:
 # fit, region_table, x, y, affected.
 # An internal node ID from region_table can be used for another region plot:
-# plot(fit, type = "region", node = region_table$node_id[2])
+# plot(fit, type = "regions", node = region_table$node_id[2])
 # Local probabilities/intervals condition on the representative tree.
 # Positive effect means group 1 has higher odds of entering its left child.

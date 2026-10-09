@@ -25,4 +25,10 @@
 - A warning is issued when no split is possible. Vector inputs for one
   variable, `print(fit, ...)` and graphical parameters in `plot()` are
   accepted; the region-plot histogram is aligned with its bins.
+- New plots: `plot(fit, type = "regions")` shows the regions with the largest
+  effects on scatter plots, as in Figure 14 of the supplement of Awaya and Ma
+  (2024); `plot(fit, type = "levels")` shades the regions of each tree level by
+  their probability of difference for two variables, as in Figure 7 of
+  Soriano and Ma (2017). `type = "region"` now draws the region on a scatter
+  plot of two variables.
 - This is a finite HMPT variant; it does not reproduce legacy HMPT output.
