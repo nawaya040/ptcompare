@@ -9,7 +9,8 @@ pt_control(
   ess_threshold = 0.5,
   keep_particles = FALSE,
   keep_data = TRUE,
-  effect_draws = 4096L
+  effect_draws = 4096L,
+  resample_power = 0.5
 )
 }
 \arguments{
@@ -21,11 +22,20 @@ pt_control(
 
 \item{keep_data}{Store original data for region plots.}
 
-\item{effect_draws}{Deterministic quadrature size for absolute effects and intervals.}
+\item{effect_draws}{Deterministic quadrature size for absolute effects and
+intervals (between 256 and 1048576).}
+
+\item{resample_power}{Power kappa in (0, 1] of the resampling probabilities.
+Ancestors are drawn with probabilities proportional to W^kappa and receive
+weights proportional to W / W^kappa (Awaya and Ma, 2024, Section 3.1).
+The default 0.5 is the paper's choice; 1 gives standard resampling.}
 }
 \value{
 A validated list of computational settings.
 }
 \description{
 Settings for sequential Monte Carlo
+}
+\examples{
+pt_control(particles = 512)
 }

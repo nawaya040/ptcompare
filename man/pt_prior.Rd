@@ -17,21 +17,23 @@ pt_prior(
 )
 }
 \arguments{
-\item{max_depth}{Maximum split depth; the root has depth zero.}
+\item{max_depth}{Maximum split depth (1 to 20); the root has depth zero.}
 
-\item{split_grid}{Odd number of equally spaced relative split candidates.}
+\item{split_grid}{Odd number (1 to 127) of equally spaced relative split
+candidates k/(split_grid+1).}
 
 \item{min_node}{Nodes with fewer pooled observations are uniform leaves.}
 
-\item{gamma}{Probability parameter for entering the difference state.}
+\item{gamma}{Probability parameter for entering the difference state, in (0, 1).}
 
-\item{beta}{Depth decay of persistence in the difference state (at least one).}
+\item{beta}{Depth decay of persistence in the difference state (1 to 100);
+1 gives the transition matrix of Awaya and Ma (2024, Supplement F.2.1).}
 
-\item{prune}{Transition probability into absorbing sharing.}
+\item{prune}{Transition probability into absorbing sharing, in (0, 1).}
 
 \item{precision}{Total beta precision (between 1e-6 and 1e6), centered at the geometric split fraction.}
 
-\item{eta}{Concentration of the split prior around the midpoint. Candidate
+\item{eta}{Concentration (0 to 100) of the split prior around the midpoint. Candidate
 weights are proportional to exp(-eta * pooled_node_size * abs(fraction-0.5)).}
 
 \item{midpoint_spike}{Use the spike-and-slab location prior of Awaya and Ma
@@ -42,8 +44,11 @@ at every node.}
 }
 \value{
 A validated model specification. These settings change the model,
-  including the finite resolution and pooled-data stopping rule.
+including the finite resolution and pooled-data stopping rule.
 }
 \description{
 Finite hidden Markov Polya tree specification
+}
+\examples{
+pt_prior(max_depth = 6, split_grid = 7)
 }

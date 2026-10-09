@@ -6,8 +6,9 @@ test_that("group exchange, row order and interfaces preserve the target", {
   expect_equal(a$prob_null,b$prob_null,tolerance=1e-10)
   expect_equal(a$tree$prob_difference,b$tree$prob_difference,tolerance=1e-10)
   expect_equal(a$tree$effect,-b$tree$effect,tolerance=1e-10)
-  expect_equal(a$tree$effect_abs,b$tree$effect_abs,tolerance=1e-10)
-  expect_equal(a$tree$lower,-b$tree$upper,tolerance=1e-10)
+  ra <- regions(a,prob=0); rb <- regions(b,prob=0); rb <- rb[match(ra$node_id,rb$node_id),]
+  expect_equal(ra$effect_abs,rb$effect_abs,tolerance=1e-10)
+  expect_equal(ra$lower,-rb$upper,tolerance=1e-10)
   set.seed(8); z <- compare_pt(x[nrow(x):1,],y[nrow(y):1,],prior=p,control=c)
   expect_equal(a$prob_null,z$prob_null,tolerance=1e-12)
   set.seed(8); z <- compare_pt(rbind(x,y),group=factor(rep(c("A","B"),c(nrow(x),nrow(y)))),prior=p,control=c)
@@ -48,6 +49,8 @@ test_that("inputs fail clearly", {
   expect_error(pt_prior(split_grid=4),"odd")
   expect_error(pt_prior(prune=0),"strictly")
   expect_error(pt_prior(beta=.5),"between")
+  expect_error(pt_control(resample_power=0),"greater than 0")
+  expect_error(pt_control(resample_power=1.5),"between")
   c <- pt_control(); c$particles <- -1
   expect_error(compare_pt(x,x,control=c),"particles")
 })
@@ -71,6 +74,8 @@ test_that("plots work with and without stored data", {
   on.exit({grDevices::dev.off(); unlink(path)})
   state <- .Random.seed
   expect_silent(plot(a)); expect_silent(plot(a,type="region")); expect_silent(plot(a,type="diagnostics"))
+  expect_silent(plot(a,main="custom")); expect_silent(plot(a,type="region",main="custom"))
+  expect_output(print(a,digits=3),"P\\(distributions differ\\)")
   expect_identical(.Random.seed,state)
   a$data <- NULL; expect_error(plot(a,type="region"),"keep_data")
 })
@@ -110,11 +115,53 @@ test_that("pooled ranks preserve labels, ties and original-scale membership", {
 
 test_that("default coordinates are explicit and support-aware", {
   x<-matrix(c(.1,.2,.3,.4),ncol=1); y<-matrix(c(.3,.5,.7,.9),ncol=1)
-  c<-pt_control(particles=8,effect_draws=256)
-  set.seed(4); a<-compare_pt(x,y,control=c)
-  set.seed(4); b<-compare_pt(x,y,control=c,transform="rank")
+  c<-pt_control(particles=8,effect_draws=256); p<-pt_prior(min_node=4)
+  set.seed(4); a<-compare_pt(x,y,control=c,prior=p)
+  set.seed(4); b<-compare_pt(x,y,control=c,prior=p,transform="rank")
   expect_identical(a$transform,"rank")
   expect_equal(a$tree,b$tree)
-  z<-compare_pt(x,y,control=c,support=matrix(c(0,1),1,2))
+  z<-compare_pt(x,y,control=c,prior=p,support=matrix(c(0,1),1,2))
   expect_identical(z$transform,"range")
+})
+
+test_that("range thresholds reproduce the engine's region membership", {
+  # A data value lies exactly on a cut; rounding of lo + cut*width must not
+  # move it to the other side in original units.
+  x <- matrix(rep(c(5,6,7),each=10)); y <- matrix(rep(c(8,9),each=15))
+  set.seed(1)
+  f <- compare_pt(x,y,support=matrix(c(-0.2,9.4),1),
+                  prior=pt_prior(max_depth=1,split_grid=3,midpoint_spike=FALSE,eta=0),
+                  control=pt_control(particles=64,effect_draws=256))
+  t <- f$tree
+  expect_equal(c(sum(x<=t$threshold[1]),sum(y<=t$threshold[1])),c(t$n1[2],t$n2[2]))
+  set.seed(2)
+  for (i in 1:20) {
+    lo <- -round(runif(1),1); hi <- 9+round(runif(1),1)
+    a <- matrix(sample(0:9,40,TRUE),ncol=2); b <- matrix(sample(0:9,40,TRUE),ncol=2)
+    f <- compare_pt(a,b,support=cbind(c(lo,lo),c(hi,hi)),
+                    prior=pt_prior(max_depth=3,split_grid=7,min_node=4),
+                    control=pt_control(particles=16,effect_draws=256))
+    t <- f$tree; data <- rbind(a,b); group <- rep(1:2,each=20)
+    membership <- list(seq_len(nrow(data)))
+    for (j in which(t$left>0)) {
+      rows <- membership[[j]]; v <- data[rows,t$variable_id[j]]
+      membership[[t$left[j]]] <- rows[v<=t$threshold[j]]
+      membership[[t$right[j]]] <- rows[v>t$threshold[j]]
+    }
+    for (j in seq_len(nrow(t))) expect_equal(tabulate(group[membership[[j]]],2L),c(t$n1[j],t$n2[j]))
+  }
+})
+
+test_that("vector inputs, extreme scales and leaf fields are handled", {
+  set.seed(9); c <- pt_control(particles=8,effect_draws=256); p <- pt_prior(max_depth=2,min_node=4)
+  set.seed(1); a <- compare_pt(c(.1,.2,.3,.4,.5),c(.3,.5,.7,.9,1),prior=p,control=c)
+  set.seed(1); b <- compare_pt(matrix(c(.1,.2,.3,.4,.5)),matrix(c(.3,.5,.7,.9,1)),prior=p,control=c)
+  expect_equal(a$tree,b$tree)
+  set.seed(1); z <- compare_pt(c(.1,.2,.3,.4,.5),c(.3,.5,.7,.9,1),support=c(0,1),prior=p,control=c)
+  expect_identical(z$transform,"range")
+  expect_silent(compare_pt(matrix(c(-1e308,1e308,0,1,2)),matrix(3:7),prior=p,control=c))
+  leaf <- a$tree$left==0
+  expect_true(all(is.na(a$tree$variable_id[leaf]) & is.na(a$tree$cut_unit[leaf]) & is.na(a$tree$fraction[leaf])))
+  expect_output(print(pt_prior()),"midpoint_spike")
+  expect_output(print(pt_control()),"resample_power")
 })

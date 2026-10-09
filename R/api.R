@@ -1,33 +1,45 @@
 #' Settings for sequential Monte Carlo
 #' @param particles Number of particles. Increase this to assess Monte Carlo stability.
 #' @param ess_threshold Resample when ESS is below this fraction of particles.
+#' @param resample_power Power kappa in (0, 1] of the resampling probabilities.
+#'   Ancestors are drawn with probabilities proportional to W^kappa and receive
+#'   weights proportional to W / W^kappa (Awaya and Ma, 2024, Section 3.1).
+#'   The default 0.5 is the paper's choice; 1 gives standard resampling.
 #' @param keep_particles Keep every final particle tree (can use substantial memory).
 #' @param keep_data Store original data for region plots.
-#' @param effect_draws Deterministic quadrature size for absolute effects and intervals.
+#' @param effect_draws Deterministic quadrature size for absolute effects and
+#'   intervals (between 256 and 1048576).
 #' @return A validated list of computational settings.
+#' @examples
+#' pt_control(particles = 512)
 #' @export
 pt_control <- function(particles = 256L, ess_threshold = 0.5,
                        keep_particles = FALSE, keep_data = TRUE,
-                       effect_draws = 4096L) {
+                       effect_draws = 4096L, resample_power = 0.5) {
   .pt_integer(particles, "particles", 2, 100000)
   .pt_number(ess_threshold, "ess_threshold", 0, 1)
+  .pt_number(resample_power, "resample_power", 0, 1)
+  if (resample_power == 0) stop("'resample_power' must be greater than 0.", call. = FALSE)
   .pt_flag(keep_particles, "keep_particles")
   .pt_flag(keep_data, "keep_data")
   .pt_integer(effect_draws, "effect_draws", 256, 1048576)
   structure(list(particles = as.integer(particles), ess_threshold = ess_threshold,
                  keep_particles = keep_particles, keep_data = keep_data,
-                 effect_draws = as.integer(effect_draws)), class = "pt_control")
+                 effect_draws = as.integer(effect_draws),
+                 resample_power = resample_power), class = "pt_control")
 }
 
 #' Finite hidden Markov Polya tree specification
-#' @param max_depth Maximum split depth; the root has depth zero.
-#' @param split_grid Odd number of equally spaced relative split candidates.
+#' @param max_depth Maximum split depth (1 to 20); the root has depth zero.
+#' @param split_grid Odd number (1 to 127) of equally spaced relative split
+#'   candidates k/(split_grid+1).
 #' @param min_node Nodes with fewer pooled observations are uniform leaves.
-#' @param gamma Probability parameter for entering the difference state.
-#' @param beta Depth decay of persistence in the difference state (at least one).
-#' @param prune Transition probability into absorbing sharing.
+#' @param gamma Probability parameter for entering the difference state, in (0, 1).
+#' @param beta Depth decay of persistence in the difference state (1 to 100);
+#'   1 gives the transition matrix of Awaya and Ma (2024, Supplement F.2.1).
+#' @param prune Transition probability into absorbing sharing, in (0, 1).
 #' @param precision Total beta precision (between 1e-6 and 1e6), centered at the geometric split fraction.
-#' @param eta Concentration of the split prior around the midpoint. Candidate
+#' @param eta Concentration (0 to 100) of the split prior around the midpoint. Candidate
 #'   weights are proportional to exp(-eta * pooled_node_size * abs(fraction-0.5)).
 #' @param midpoint_spike Use the spike-and-slab location prior of Awaya and Ma
 #'   (2024, Appendix A). The midpoint receives its prior mass from the split
@@ -36,6 +48,8 @@ pt_control <- function(particles = 256L, ess_threshold = 0.5,
 #'   at every node.
 #' @return A validated model specification. These settings change the model,
 #'   including the finite resolution and pooled-data stopping rule.
+#' @examples
+#' pt_prior(max_depth = 6, split_grid = 7)
 #' @export
 pt_prior <- function(max_depth = 8L, split_grid = 15L, min_node = 20L,
                      gamma = 0.3, beta = 1, prune = 0.3,
@@ -63,28 +77,51 @@ pt_prior <- function(max_depth = 8L, split_grid = 15L, min_node = 20L,
 #' tree with the largest prior-times-likelihood score, not a guaranteed global
 #' maximizer. Observations must be independent within and across the two groups.
 #'
-#' @param x Numeric matrix or numeric data frame for group 1, or pooled data.
-#' @param y Numeric matrix or data frame for group 2. Use either y or group.
+#' @param x Numeric matrix, numeric data frame or numeric vector (one variable)
+#'   for group 1, or pooled data.
+#' @param y Numeric matrix, data frame or vector for group 2. Use either y or group.
 #' @param group Two-level labels for rows of pooled x. Factor levels set group
-#'   order; other labels use order of first appearance.
+#'   order; other labels use order of first appearance (so `c(1, 1, 0, 0)` makes
+#'   "1" group 1). The sign of `effect` refers to this order.
 #' @param support Optional matrix with one row per original variable and two
-#'   columns (lower, upper). For range coordinates, omitted support uses pooled
-#'   ranges padded by 1 percent.
+#'   columns (lower, upper); a length-two vector is accepted for one variable.
+#'   For range coordinates, omitted support uses pooled ranges padded by 1 percent.
 #' @param transform Common coordinate transformation. 'range' uses linear
-#'   scaling. 'rank' maps pooled midranks to [0,1], preserves ties and stores
+#'   scaling. 'rank' maps pooled midranks to the unit interval, preserves ties and stores
 #'   an inverse interpolation for explanations. It changes the partition prior
 #'   on the original scale and conditions on an estimated marginal transform.
 #'   Explicit support is supported only with 'range'.
+#'   'range' is the linear rescaling to the unit cube of Awaya and Ma (2024).
 #'   The default is 'rank' when support is omitted and 'range' when supplied.
 #' @param prior Model settings from [pt_prior()].
 #' @param control Computational settings from [pt_control()].
-#' @return An object of class `ptcompare_fit`, including the representative tree,
-#'   global posterior probability of equality, preprocessing and diagnostics.
+#' @return An object of class `ptcompare_fit`, a list with components
+#' \describe{
+#'   \item{prob_null, prob_difference}{Posterior probability that the two
+#'     distributions are equal, and its complement, under the finite model.}
+#'   \item{tree}{Representative tree, one row per node: `node_id`, `parent_id`,
+#'     `left`, `right` (child IDs, 0 for leaves), `depth`, `variable_id`,
+#'     `variable`, `threshold` (original units), `cut_unit` and `fraction`
+#'     (unit-scale cut and relative split location), `n1`, `n2`,
+#'     `prob_difference` (local posterior probability of state D), `effect`
+#'     (posterior mean signed log odds ratio), `a1`, `b1`, `a2`, `b2` (beta
+#'     posterior parameters under D), `stop_reason` and `condition`. Split
+#'     columns are NA for leaves. Absolute effects and intervals are computed
+#'     by [regions()].}
+#'   \item{diagnostics}{See [diagnostics()].}
+#'   \item{particles}{With `keep_particles = TRUE`, the final particle trees as
+#'     engine tables (unit-scale cuts only, no names or thresholds).}
+#'   \item{group_names, variables, sample_sizes, prior, control, support,
+#'     dropped_variables, support_source, transform, transform_knots, data,
+#'     group, call}{Inputs and preprocessing.}
+#' }
 #' @details Terminal regions have common uniform conditional distributions.
 #'   Global equality concerns this finite model. Data-derived support and node
 #'   stopping are conditioned on the pooled data. No group-specific scaling is
 #'   applied. Constant columns are removed with a warning. Missing and non-finite
-#'   observations are rejected. Ties go to the left child at a split.
+#'   observations are rejected. Ties go to the left child at a split. If the
+#'   pooled sample is smaller than `min_node`, no split is possible and the
+#'   finite model gives P(equal) = 1; a warning is issued.
 #' @references Awaya, N. and Ma, L. (2024). Hidden Markov Polya Trees for
 #'   High-Dimensional Distributions. JASA 119(545), 189--201.
 #'   doi:10.1080/01621459.2022.2105223.
@@ -114,17 +151,18 @@ compare_pt <- function(x, y = NULL, group = NULL, support = NULL,
   tree$variable <- NA_character_
   tree$variable[internal] <- input$variables[tree$variable_id[internal]]
   tree$threshold <- NA_real_
-  j <- tree$variable_id[internal]
   tree$threshold[internal] <- vapply(which(internal), function(i) {
     j <- tree$variable_id[i]
-    if (transform == "range") input$support[j, 1] + tree$cut_unit[i] *
+    thr <- if (transform == "range") input$support[j, 1] + tree$cut_unit[i] *
       (input$support[j, 2] - input$support[j, 1])
     else stats::approx(input$knots[[j]]$unit, input$knots[[j]]$original,
                        xout = tree$cut_unit[i], ties = "ordered")$y
+    .pt_snap(thr, tree$cut_unit[i], input$original[, j], input$unit[, j])
   }, numeric(1))
   tree$condition <- .pt_conditions(tree)
-  effect <- .pt_effects(tree, control$effect_draws)
-  tree <- cbind(tree, effect)
+  if (!any(internal))
+    warning("No split was possible (pooled sample size below 'min_node'); ",
+            "the finite model gives P(equal) = 1.", call. = FALSE)
   stopped <- tree$left == 0 & tree$depth == prior$max_depth &
     tree$n1 + tree$n2 >= prior$min_node
   out <- list(call = match.call(), prob_null = raw$prob_null,
@@ -167,6 +205,7 @@ compare_pt <- function(x, y = NULL, group = NULL, support = NULL,
     stop(sprintf("'%s' must be TRUE or FALSE.", name), call. = FALSE)
 }
 .pt_matrix <- function(x, name) {
+  if (is.null(dim(x)) && is.numeric(x)) x <- matrix(x, ncol = 1L)
   if (is.data.frame(x)) {
     if (!all(vapply(x, function(z) is.numeric(z) && !is.complex(z), logical(1))))
       stop(sprintf("'%s' must contain only numeric columns.", name), call. = FALSE)
@@ -213,6 +252,7 @@ compare_pt <- function(x, y = NULL, group = NULL, support = NULL,
     widths <- ranges[, 2] - ranges[, 1]
     support <- cbind(ranges[, 1] - .01 * widths, ranges[, 2] + .01 * widths)
   } else {
+    if (is.null(dim(support)) && length(support) == 2L) support <- matrix(support, 1L)
     if (!is.matrix(support) || !is.numeric(support) || is.complex(support) ||
         !identical(dim(support), c(ncol(x), 2L)) || any(!is.finite(support)) ||
         any(support[, 1] >= support[, 2]))
@@ -221,12 +261,14 @@ compare_pt <- function(x, y = NULL, group = NULL, support = NULL,
       stop("All observations must lie inside 'support'.", call. = FALSE)
   }
   x <- x[, keep, drop = FALSE]; support <- support[keep, , drop = FALSE]
-  width <- support[, 2] - support[, 1]
-  if (any(!is.finite(support)) || any(!is.finite(width)) || any(width <= 0))
-    stop("Data scale is too extreme for safe range scaling; rescale the input.", call. = FALSE)
-  unit <- sweep(sweep(x, 2, support[, 1], "-"), 2, width, "/")
   knots <- NULL
-  if (transform == "rank") {
+  if (transform == "range") {
+    width <- support[, 2] - support[, 1]
+    if (any(!is.finite(support)) || any(!is.finite(width)) || any(width <= 0))
+      stop("Data scale is too extreme for safe range scaling; rescale the input.", call. = FALSE)
+    unit <- sweep(sweep(x, 2, support[, 1], "-"), 2, width, "/")
+  } else {
+    unit <- x
     knots <- vector("list", ncol(x))
     for (j in seq_len(ncol(x))) {
       r <- rank(x[, j], ties.method = "average")
@@ -240,12 +282,22 @@ compare_pt <- function(x, y = NULL, group = NULL, support = NULL,
        support_source = source, knots = knots)
 }
 
+# The engine splits on unit coordinates (unit <= cut goes left). Move the
+# original-scale threshold, only if rounding requires it, so that
+# original <= threshold reproduces exactly the same assignment.
+.pt_snap <- function(thr, cut, original, unit) {
+  left <- unit <= cut
+  lmax <- if (any(left)) max(original[left]) else -Inf
+  rmin <- if (any(!left)) min(original[!left]) else Inf
+  if (thr >= lmax && thr < rmin) return(thr)
+  if (is.finite(rmin) && is.finite(lmax)) (lmax + rmin) / 2 else lmax
+}
 .pt_conditions <- function(tree) {
   conditions <- rep("all observations", nrow(tree))
   for (j in seq_len(nrow(tree))[-1L]) {
     par <- tree$parent_id[j]
     clause <- paste0(tree$variable[par], if (tree$left[par] == j) " <= " else " > ",
-                     format(tree$threshold[par], digits = 6, trim = TRUE))
+                     format(tree$threshold[par], digits = 7, trim = TRUE))
     conditions[j] <- if (par == 1L) clause else paste(conditions[par], clause, sep = " & ")
   }
   conditions
@@ -258,8 +310,8 @@ compare_pt <- function(x, y = NULL, group = NULL, support = NULL,
   out
 }
 .pt_effects <- function(tree, n) {
-  ans <- data.frame(effect_abs = rep(NA_real_, nrow(tree)),
-                    lower = NA_real_, upper = NA_real_, prob_positive = NA_real_)
+  na <- rep(NA_real_, nrow(tree))
+  ans <- data.frame(effect_abs = na, lower = na, upper = na, prob_positive = na)
   # Log-gamma construction avoids beta draws rounded to 0/1 near boundaries.
   u <- lapply(c(2, 3, 5, 7, 11, 13, 17, 19), function(b) .pt_radical(n, b))
   loggamma <- function(shape, j) {

@@ -17,11 +17,25 @@ exploratory filter, not a p-value or a frequentist error guarantee.}
 \item{...}{Reserved; must be empty.}
 }
 \value{
-A data frame of internal nodes, ordered by probability and effect.
-  Regions may overlap through ancestor/descendant nesting. Effects and 95%
-  intervals condition on the representative tree. A positive effect means
-  group 1 has greater odds of entering the left child, conditional on the node.
+A data frame of internal nodes, ordered by \code{prob_difference} and then
+\code{effect_abs}, with columns \code{node_id}, \code{parent_id}, \code{depth}, \code{condition}
+(the region, in original units), \code{variable} and \code{threshold} (the split
+inside the region; \code{variable <= threshold} is the left child), \code{n1}, \code{n2},
+\code{prob_difference} (posterior probability that the two groups differ in
+this split), \code{effect} (posterior mean of the group 1 minus group 2 log odds
+ratio of the left child), \code{effect_abs} (posterior mean absolute log odds
+ratio), \code{lower} and \code{upper} (95\% credible interval including the zero
+point mass) and \code{prob_positive} (posterior probability of a positive log
+odds ratio). Regions may overlap through ancestor/descendant nesting.
+Effects and intervals condition on the representative tree.
 }
 \description{
 Extract local differences on the representative tree
+}
+\examples{
+set.seed(1)
+fit <- compare_pt(matrix(rnorm(120), ncol = 2), matrix(rnorm(120, 0.6), ncol = 2),
+                  control = pt_control(particles = 32, effect_draws = 256),
+                  prior = pt_prior(max_depth = 3, split_grid = 3))
+regions(fit, prob = 0)
 }

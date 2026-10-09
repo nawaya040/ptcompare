@@ -15,31 +15,52 @@ compare_pt(
 )
 }
 \arguments{
-\item{x}{Numeric matrix or numeric data frame for group 1, or pooled data.}
+\item{x}{Numeric matrix, numeric data frame or numeric vector (one variable)
+for group 1, or pooled data.}
 
-\item{y}{Numeric matrix or data frame for group 2. Use either y or group.}
+\item{y}{Numeric matrix, data frame or vector for group 2. Use either y or group.}
 
 \item{group}{Two-level labels for rows of pooled x. Factor levels set group
-order; other labels use order of first appearance.}
+order; other labels use order of first appearance (so \code{c(1, 1, 0, 0)} makes
+"1" group 1). The sign of \code{effect} refers to this order.}
 
 \item{support}{Optional matrix with one row per original variable and two
-columns (lower, upper). For range coordinates, omitted support uses pooled
-ranges padded by 1 percent.}
+columns (lower, upper); a length-two vector is accepted for one variable.
+For range coordinates, omitted support uses pooled ranges padded by 1 percent.}
 
-\item{prior}{Model settings from [pt_prior()].}
+\item{prior}{Model settings from \code{\link[=pt_prior]{pt_prior()}}.}
 
-\item{control}{Computational settings from [pt_control()].}
+\item{control}{Computational settings from \code{\link[=pt_control]{pt_control()}}.}
 
 \item{transform}{Common coordinate transformation. 'range' uses linear
-scaling. 'rank' maps pooled midranks to [0,1], preserves ties and stores
+scaling. 'rank' maps pooled midranks to the unit interval, preserves ties and stores
 an inverse interpolation for explanations. It changes the partition prior
 on the original scale and conditions on an estimated marginal transform.
 Explicit support is supported only with 'range'.
+'range' is the linear rescaling to the unit cube of Awaya and Ma (2024).
 The default is 'rank' when support is omitted and 'range' when supplied.}
 }
 \value{
-An object of class `ptcompare_fit`, including the representative tree,
-  global posterior probability of equality, preprocessing and diagnostics.
+An object of class \code{ptcompare_fit}, a list with components
+\describe{
+\item{prob_null, prob_difference}{Posterior probability that the two
+distributions are equal, and its complement, under the finite model.}
+\item{tree}{Representative tree, one row per node: \code{node_id}, \code{parent_id},
+\code{left}, \code{right} (child IDs, 0 for leaves), \code{depth}, \code{variable_id},
+\code{variable}, \code{threshold} (original units), \code{cut_unit} and \code{fraction}
+(unit-scale cut and relative split location), \code{n1}, \code{n2},
+\code{prob_difference} (local posterior probability of state D), \code{effect}
+(posterior mean signed log odds ratio), \code{a1}, \code{b1}, \code{a2}, \code{b2} (beta
+posterior parameters under D), \code{stop_reason} and \code{condition}. Split
+columns are NA for leaves. Absolute effects and intervals are computed
+by \code{\link[=regions]{regions()}}.}
+\item{diagnostics}{See \code{\link[=diagnostics]{diagnostics()}}.}
+\item{particles}{With \code{keep_particles = TRUE}, the final particle trees as
+engine tables (unit-scale cuts only, no names or thresholds).}
+\item{group_names, variables, sample_sizes, prior, control, support,
+dropped_variables, support_source, transform, transform_knots, data,
+group, call}{Inputs and preprocessing.}
+}
 }
 \description{
 Fits a finite adaptive hidden Markov Polya tree comparison. Global evidence
@@ -49,10 +70,12 @@ maximizer. Observations must be independent within and across the two groups.
 }
 \details{
 Terminal regions have common uniform conditional distributions.
-  Global equality concerns this finite model. Data-derived support and node
-  stopping are conditioned on the pooled data. No group-specific scaling is
-  applied. Constant columns are removed with a warning. Missing and non-finite
-  observations are rejected. Ties go to the left child at a split.
+Global equality concerns this finite model. Data-derived support and node
+stopping are conditioned on the pooled data. No group-specific scaling is
+applied. Constant columns are removed with a warning. Missing and non-finite
+observations are rejected. Ties go to the left child at a split. If the
+pooled sample is smaller than \code{min_node}, no split is possible and the
+finite model gives P(equal) = 1; a warning is issued.
 }
 \examples{
 set.seed(1)
@@ -65,6 +88,6 @@ regions(fit, prob = 0)
 }
 \references{
 Awaya, N. and Ma, L. (2024). Hidden Markov Polya Trees for
-  High-Dimensional Distributions. JASA 119(545), 189--201.
-  doi:10.1080/01621459.2022.2105223.
+High-Dimensional Distributions. JASA 119(545), 189--201.
+doi:10.1080/01621459.2022.2105223.
 }

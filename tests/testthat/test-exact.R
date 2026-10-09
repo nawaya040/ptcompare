@@ -13,6 +13,7 @@ test_that("fixed-tree messages agree with complete state enumeration", {
 })
 
 test_that("SMC targets the fully enumerated adaptive tree posterior", {
+  skip_on_cran()
   x <- rbind(c(.1,.1),c(.2,.8),c(.3,.4),c(.4,.9),c(.8,.3),c(.9,.6),
              c(.1,.7),c(.2,.6),c(.4,.2),c(.6,.5),c(.7,.8),c(.9,.1))
   g <- rep(0:1,each=6)
@@ -22,10 +23,15 @@ test_that("SMC targets the fully enumerated adaptive tree posterior", {
   expect_equal(sum(ref$weights),1)
   expect_length(ref$weights,if (spike) 152 else 216)
   keys <- vapply(ref$tables,tree_key,character(1))
-  for (threshold in c(0,1)) {
+  # No resampling; frequent resampling with the paper's kappa = 0.5 (default)
+  # and, for the spike model, with standard resampling (kappa = 1).
+  runs <- list(c(0,.5),c(1,.5)); if (spike) runs <- c(runs,list(c(1,1)))
+  for (run in runs) {
+    threshold <- run[1]
     set.seed(713)
     fit <- compare_pt(x,group=g,support=cbind(c(0,0),c(1,1)),prior=p,
-                     control=pt_control(particles=12000,ess_threshold=threshold,keep_particles=TRUE,effect_draws=256))
+                     control=pt_control(particles=12000,ess_threshold=threshold,keep_particles=TRUE,
+                                        effect_draws=256,resample_power=run[2]))
     expect_equal(fit$prob_null,ref$prob_null,tolerance=.012)
     expect_equal(fit$diagnostics$log_evidence,ref$log_evidence,tolerance=.025)
     empirical <- numeric(length(keys))
@@ -41,7 +47,8 @@ test_that("SMC targets the fully enumerated adaptive tree posterior", {
 
 test_that("unsplit model has unit null probability and likelihood ratio", {
   x <- matrix(c(.1,.2,.8,.9),ncol=1)
-  fit <- compare_pt(x,group=c(0,0,1,1),prior=pt_prior(min_node=10),control=pt_control(particles=8,effect_draws=256))
+  expect_warning(fit <- compare_pt(x,group=c(0,0,1,1),prior=pt_prior(min_node=10),
+                                   control=pt_control(particles=8,effect_draws=256)),"No split")
   expect_equal(fit$prob_null,1,tolerance=1e-12)
   expect_equal(fit$diagnostics$log_evidence,0)
   expect_equal(nrow(regions(fit,prob=0)),0)

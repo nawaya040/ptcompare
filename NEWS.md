@@ -13,4 +13,16 @@
   a node is divided at its midpoint, all its descendants are too. Results
   saved in `evaluation/` were obtained before this change, i.e. with the
   equivalent of `midpoint_spike = FALSE`. Exact-enumeration tests cover both.
+- `pt_control(resample_power = 0.5)`: resampling with probabilities
+  proportional to W^kappa and weights W/a (Awaya and Ma, 2024, Section 3.1),
+  with the paper's default kappa = 0.5; `resample_power = 1` gives standard
+  resampling. Saved evaluation results predate this change (kappa = 1).
+- Reported thresholds now reproduce the engine's region membership exactly
+  (previously rounding could move an observation lying on a cut).
+- Effect summaries (`effect_abs`, intervals, `prob_positive`) are computed by
+  `regions()`/`summary()` for the returned nodes only; `fit$tree` keeps the
+  signed `effect`. Split columns of leaves are NA.
+- A warning is issued when no split is possible. Vector inputs for one
+  variable, `print(fit, ...)` and graphical parameters in `plot()` are
+  accepted; the region-plot histogram is aligned with its bins.
 - This is a finite HMPT variant; it does not reproduce legacy HMPT output.

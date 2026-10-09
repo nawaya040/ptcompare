@@ -4,16 +4,35 @@
 #'   exploratory filter, not a p-value or a frequentist error guarantee.
 #' @param min_n Minimum pooled region size.
 #' @param ... Reserved; must be empty.
-#' @return A data frame of internal nodes, ordered by probability and effect.
-#'   Regions may overlap through ancestor/descendant nesting. Effects and 95%
-#'   intervals condition on the representative tree. A positive effect means
-#'   group 1 has greater odds of entering the left child, conditional on the node.
+#' @return A data frame of internal nodes, ordered by `prob_difference` and then
+#'   `effect_abs`, with columns `node_id`, `parent_id`, `depth`, `condition`
+#'   (the region, in original units), `variable` and `threshold` (the split
+#'   inside the region; `variable <= threshold` is the left child), `n1`, `n2`,
+#'   `prob_difference` (posterior probability that the two groups differ in
+#'   this split), `effect` (posterior mean of the group 1 minus group 2 log odds
+#'   ratio of the left child), `effect_abs` (posterior mean absolute log odds
+#'   ratio), `lower` and `upper` (95% credible interval including the zero
+#'   point mass) and `prob_positive` (posterior probability of a positive log
+#'   odds ratio). Regions may overlap through ancestor/descendant nesting.
+#'   Effects and intervals condition on the representative tree.
+#' @examples
+#' set.seed(1)
+#' fit <- compare_pt(matrix(rnorm(120), ncol = 2), matrix(rnorm(120, 0.6), ncol = 2),
+#'                   control = pt_control(particles = 32, effect_draws = 256),
+#'                   prior = pt_prior(max_depth = 3, split_grid = 3))
+#' regions(fit, prob = 0)
 #' @export
 regions <- function(x, prob = 0.5, min_n = 0L, ...) {
   .pt_fit(x); .pt_dots(...); .pt_number(prob, "prob", 0, 1)
   .pt_integer(min_n, "min_n", 0, .Machine$integer.max)
   a <- x$tree
-  a <- a[a$left > 0 & !is.na(a$prob_difference) & a$prob_difference >= prob & a$n1+a$n2 >= min_n, ]
+  keep <- a$left > 0 & !is.na(a$prob_difference) & a$prob_difference >= prob & a$n1+a$n2 >= min_n
+  .pt_region_table(x, which(keep))
+}
+# Effect quadrature is computed only for the requested nodes.
+.pt_region_table <- function(x, rows) {
+  a <- x$tree[rows, , drop = FALSE]
+  a <- cbind(a, .pt_effects(a, x$control$effect_draws))
   cols <- c("node_id", "parent_id", "depth", "condition", "variable", "threshold",
             "n1", "n2", "prob_difference", "effect", "effect_abs", "lower", "upper", "prob_positive")
   a <- a[order(-a$prob_difference, -a$effect_abs), cols, drop = FALSE]
@@ -27,42 +46,73 @@ regions <- function(x, prob = 0.5, min_n = 0L, ...) {
 #'   ancestry, stopping diagnostics and timing. Payload bytes measure retained
 #'   particle structures at iteration boundaries, excluding allocator overhead,
 #'   temporary allocations, input data and R output; this is not peak process RSS.
+#'   It is measured at SMC steps 1, 2, 4, 8, ... and at the end.
+#' @examples
+#' set.seed(1)
+#' fit <- compare_pt(matrix(rnorm(120), ncol = 2), matrix(rnorm(120, 0.6), ncol = 2),
+#'                   control = pt_control(particles = 32, effect_draws = 256),
+#'                   prior = pt_prior(max_depth = 3, split_grid = 3))
+#' diagnostics(fit)$final_ess
 #' @export
 diagnostics <- function(x, ...) { .pt_fit(x); .pt_dots(...); x$diagnostics }
 
+#' Print and summarize a comparison
+#' @param x,object Fitted comparison, or its summary.
+#' @param top Number of local regions to show, ordered as in [regions()].
+#' @param ... Ignored.
+#' @return `summary()` returns an object of class `summary.ptcompare_fit` with
+#'   the global probabilities, settings, diagnostics and the `top` rows of
+#'   [regions()] (`regions`). The print methods return their argument invisibly.
+#' @examples
+#' set.seed(1)
+#' fit <- compare_pt(matrix(rnorm(120), ncol = 2), matrix(rnorm(120, 0.6), ncol = 2),
+#'                   control = pt_control(particles = 32, effect_draws = 256),
+#'                   prior = pt_prior(max_depth = 3, split_grid = 3))
+#' fit
+#' summary(fit, top = 3)
+#' @name summary.ptcompare_fit
+NULL
+
+#' @rdname summary.ptcompare_fit
 #' @export
 print.ptcompare_fit <- function(x, ...) {
-  .pt_dots(...)
   cat("Bayesian two-sample comparison (ptcompare)\n")
   cat(sprintf("%s: %d; %s: %d; variables: %d\n", x$group_names[1], x$sample_sizes[1],
               x$group_names[2], x$sample_sizes[2], length(x$variables)))
   cat(sprintf("Posterior P(distributions differ): %.6f\n", x$prob_difference))
-  cat("Common coordinate transformation:", x$transform, "\n")
+  cat(sprintf("Common coordinate transformation: %s\n", x$transform))
+  if (!any(x$tree$left > 0)) cat("No split was possible; P(equal) = 1 by construction of the finite model.\n")
   cat(sprintf("Particles: %d; elapsed: %.2f s; representative internal nodes: %d\n",
               x$control$particles, x$diagnostics$elapsed_seconds, sum(x$tree$left > 0)))
   cat("Local summaries condition on the representative tree. Use summary(), regions(), plot().\n")
   invisible(x)
 }
 
+#' @rdname summary.ptcompare_fit
 #' @export
 summary.ptcompare_fit <- function(object, ..., top = 6L) {
-  .pt_dots(...); .pt_integer(top, "top", 0, 10000)
+  .pt_integer(top, "top", 0, 10000)
+  t <- object$tree; rows <- which(t$left > 0)
+  rows <- rows[order(-t$prob_difference[rows])]
+  # Include every node tied with the last shown probability before ordering by effect.
+  if (length(rows) > top)
+    rows <- rows[t$prob_difference[rows] >= if (top > 0) t$prob_difference[rows[top]] else Inf]
   structure(list(prob_null = object$prob_null, prob_difference = object$prob_difference,
                  sample_sizes = object$sample_sizes, group_names = object$group_names,
                  n_variables = length(object$variables), prior = object$prior,
                  transform = object$transform,
                  diagnostics = object$diagnostics,
-                 regions = utils::head(regions(object, prob = 0), top)),
+                 regions = utils::head(.pt_region_table(object, rows), top)),
             class = "summary.ptcompare_fit")
 }
 
+#' @rdname summary.ptcompare_fit
 #' @export
 print.summary.ptcompare_fit <- function(x, ...) {
-  .pt_dots(...)
   cat("Bayesian two-sample comparison\n")
   cat(sprintf("N = %d / %d; variables = %d\n", x$sample_sizes[1], x$sample_sizes[2], x$n_variables))
   cat(sprintf("P(equal) = %.6g; P(different) = %.6g (finite model)\n", x$prob_null, x$prob_difference))
-  cat("Common coordinate transformation:", x$transform, "\n")
+  cat(sprintf("Common coordinate transformation: %s\n", x$transform))
   tr <- x$diagnostics$trace
   cat(sprintf("Final ESS = %.1f; resampling steps = %d; elapsed = %.2f s\n",
               x$diagnostics$final_ess, x$diagnostics$resamples, x$diagnostics$elapsed_seconds))
@@ -91,14 +141,23 @@ print.summary.ptcompare_fit <- function(x, ...) {
 #' @param type One of 'tree', 'region', or 'diagnostics'.
 #' @param node Node ID for a local region plot. Defaults to the node with largest
 #'   local difference probability.
-#' @param max_depth Display tree through this depth. Hidden descendants are
+#' @param max_depth Display tree through this depth (0 to 6). Hidden descendants are
 #'   indicated with a plus sign; the fitted model is unchanged.
-#' @param ... Reserved; must be empty.
+#' @param ... Graphical parameters passed to the main plotting call (for
+#'   example `main`); ignored for `type = "diagnostics"`.
 #' @return Invisibly returns the plotted tree rows or region data, or diagnostics.
+#' @examples
+#' set.seed(1)
+#' fit <- compare_pt(matrix(rnorm(120), ncol = 2), matrix(rnorm(120, 0.6), ncol = 2),
+#'                   control = pt_control(particles = 32, effect_draws = 256),
+#'                   prior = pt_prior(max_depth = 3, split_grid = 3))
+#' plot(fit)
+#' plot(fit, type = "region")
+#' plot(fit, type = "diagnostics")
 #' @export
 plot.ptcompare_fit <- function(x, type = c("tree", "region", "diagnostics"),
                               node = NULL, max_depth = 3L, ...) {
-  .pt_dots(...); type <- match.arg(type)
+  type <- match.arg(type)
   if (type == "diagnostics") {
     tr <- x$diagnostics$trace
     if (!nrow(tr)) { graphics::plot.new(); graphics::title("No splits: uniform terminal model"); return(invisible(tr)) }
@@ -114,7 +173,7 @@ plot.ptcompare_fit <- function(x, type = c("tree", "region", "diagnostics"),
                      col = c("#176B87", "#B65D35"), bty = "n")
     return(invisible(tr))
   }
-  if (type == "region") return(.pt_plot_region(x, node))
+  if (type == "region") return(.pt_plot_region(x, node, ...))
   .pt_integer(max_depth, "max_depth", 0, 6)
   t <- x$tree; shown <- which(t$depth <= max_depth); pos <- numeric(nrow(t)); pos[1] <- .5
   for (j in shown[-1L]) {
@@ -125,10 +184,9 @@ plot.ptcompare_fit <- function(x, type = c("tree", "region", "diagnostics"),
   eff <- t$effect[shown]; eff[is.na(eff)] <- 0; limit <- max(abs(eff), .1)
   color <- pal[1 + round(100*(eff/limit + 1)/2)]
   old <- graphics::par(mar = c(3, 1, 4, 1)); on.exit(graphics::par(old))
-  graphics::plot(NA, xlim = c(0, 1), ylim = c(-max(t$depth[shown])-.65, .5),
+  .pt_call(graphics::plot, list(NA, xlim = c(0, 1), ylim = c(-max(t$depth[shown])-.65, .5),
                  xlab = "", ylab = "", axes = FALSE,
-                 main = "Representative partition tree",
-                 sub = "Blue: group 1 favors left; brown: group 2 favors left. + = hidden descendants")
+                 main = "Representative partition tree"), list(...))
   for (j in shown[-1L]) {
     pa <- t$parent_id[j]; graphics::segments(pos[pa], -t$depth[pa], pos[j], -t$depth[j], col = "grey70")
   }
@@ -136,7 +194,7 @@ plot.ptcompare_fit <- function(x, type = c("tree", "region", "diagnostics"),
                    cex = 1.5 + 3*sqrt((t$n1+t$n2)[shown]/sum(x$sample_sizes)))
   labs <- vapply(shown, function(j) {
     if (t$left[j] == 0) return(sprintf("#%d leaf\nn=%d/%d", j, t$n1[j], t$n2[j]))
-    paste0("#", j, " ", t$variable[j], "\n<= ", formatC(t$threshold[j], digits = 3, format = "g"),
+    paste0("#", j, " ", t$variable[j], "\n<= ", formatC(t$threshold[j], digits = 4, format = "g"),
            if (t$depth[j] == max_depth) " +" else "", "\nP(diff)=",
            formatC(t$prob_difference[j], digits = 2, format = "f"))
   }, character(1))
@@ -146,7 +204,7 @@ plot.ptcompare_fit <- function(x, type = c("tree", "region", "diagnostics"),
                   side = 1, line = 1, cex = .7)
   invisible(t[shown, ])
 }
-.pt_plot_region <- function(x, node) {
+.pt_plot_region <- function(x, node, ...) {
   if (is.null(x$data)) stop("Region plots require keep_data = TRUE.", call. = FALSE)
   t <- x$tree
   if (is.null(node)) {
@@ -170,15 +228,36 @@ plot.ptcompare_fit <- function(x, type = c("tree", "region", "diagnostics"),
     if (!any(groups == g)) return(rep(0, length(breaks)-1))
     graphics::hist(values[groups == g], breaks = breaks, plot = FALSE)$counts / sum(groups == g)
   })
-  mids <- head(breaks, -1) + diff(breaks)/2
   old <- graphics::par(mar = c(4, 4, 5, 1)); on.exit(graphics::par(old))
-  graphics::matplot(mids, counts, type = "s", lty = 1, lwd = 2,
-                    col = c("#176B87", "#B65D35"), xlab = t$variable[node],
+  # Step function over bin edges: each proportion spans its own bin.
+  .pt_call(graphics::matplot, list(breaks, rbind(counts, counts[nrow(counts), ]), type = "s",
+                    lty = 1, lwd = 2, col = c("#176B87", "#B65D35"), xlab = t$variable[node],
                     ylab = "Within-region proportion per bin", ylim = c(0, max(counts)*1.15),
-                    main = sprintf("Region #%d: P(local difference) = %.3f", node, t$prob_difference[node]))
+                    main = sprintf("Region #%d: P(local difference) = %.3f", node, t$prob_difference[node])),
+           list(...))
   graphics::abline(v = t$threshold[node], lty = 2)
   graphics::mtext(paste(strwrap(t$condition[node], width = 95), collapse = "\n"), side = 3, line = .3, cex = .7)
   graphics::legend("topright", paste0(x$group_names, " (n=", tabulate(groups+1L, 2), ")"),
                    col = c("#176B87", "#B65D35"), lwd = 2, bty = "n")
   invisible(data.frame(value = values, group = x$group_names[groups+1L]))
+}
+
+# Call a plotting function with defaults overridden by user arguments.
+.pt_call <- function(f, defaults, user) {
+  drop <- names(defaults) != "" & names(defaults) %in% names(user)
+  do.call(f, c(defaults[!drop], user))
+}
+
+#' @export
+print.pt_prior <- function(x, ...) {
+  cat("ptcompare model settings (pt_prior)\n")
+  cat(sprintf("  %-15s %s\n", names(x), vapply(x, format, character(1))), sep = "")
+  invisible(x)
+}
+
+#' @export
+print.pt_control <- function(x, ...) {
+  cat("ptcompare computational settings (pt_control)\n")
+  cat(sprintf("  %-15s %s\n", names(x), vapply(x, format, character(1))), sep = "")
+  invisible(x)
 }

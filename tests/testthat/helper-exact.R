@@ -61,8 +61,8 @@ ref_enumerate <- function(x, g, p) {
         queue <- c(queue,list(a$left,a$right)); parents <- c(parents,i,i)
       }
       out[[i]] <- data.frame(node_id=i,parent_id=parents[i],left=l,right=r,depth=a$depth,
-        variable_id=if(is.null(a$dim)) 0L else a$dim,
-        fraction=if(is.null(a$fraction)) .5 else a$fraction,
+        variable_id=if(is.null(a$dim)) NA_integer_ else a$dim,
+        fraction=if(is.null(a$fraction)) NA_real_ else a$fraction,
         n1=sum(g[a$rows]==0),n2=sum(g[a$rows]==1))
       i <- i+1L
     }

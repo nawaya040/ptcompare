@@ -13,10 +13,18 @@ diagnostics(x, ...)
 }
 \value{
 A list with the ESS trajectory, resampling counts, particle weights,
-  ancestry, stopping diagnostics and timing. Payload bytes measure retained
-  particle structures at iteration boundaries, excluding allocator overhead,
-  temporary allocations, input data and R output; this is not peak process RSS.
+ancestry, stopping diagnostics and timing. Payload bytes measure retained
+particle structures at iteration boundaries, excluding allocator overhead,
+temporary allocations, input data and R output; this is not peak process RSS.
+It is measured at SMC steps 1, 2, 4, 8, ... and at the end.
 }
 \description{
 Computational diagnostics
+}
+\examples{
+set.seed(1)
+fit <- compare_pt(matrix(rnorm(120), ncol = 2), matrix(rnorm(120, 0.6), ncol = 2),
+                  control = pt_control(particles = 32, effect_draws = 256),
+                  prior = pt_prior(max_depth = 3, split_grid = 3))
+diagnostics(fit)$final_ess
 }

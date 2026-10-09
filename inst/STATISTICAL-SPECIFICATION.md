@@ -3,8 +3,10 @@
 ## Scope and conditioning
 
 Two independent iid samples of continuous vectors are compared. The finite model
-uses common uniform distributions within terminal rectangles. Root support is
-supplied or derived from the pooled range with 1% padding on each side. Pooled
+uses common uniform distributions within terminal rectangles. With
+transform='range', root support is supplied or derived from the pooled range
+with 1% padding on each side; with transform='rank' the pooled midranks are
+mapped onto [0,1] as described below. Pooled
 constant columns are excluded. Support selection and the sample-size stopping
 rule are conditioned on the pooled observations; this is an empirical specification,
 not a fully generative model for those preprocessing decisions. No group-wise
@@ -95,9 +97,15 @@ already observed branches. For split j,
 
 The incremental importance weight is the denominator. This includes sibling
 evidence and telescopes to the declared complete-tree likelihood. Ancestors are
-updated along the changed path. Systematic resampling from normalized weights
-sets child weights to 1/M; it is triggered by ESS. Final log_evidence is the sum
-of log normalizing increments (a stochastic estimate, not exact evidence).
+updated along the changed path. When the ESS falls below
+ess_threshold*M, particles are resampled as in Section 3.1 of the paper
+(following Lu et al., 2013): ancestors are drawn by systematic resampling with
+probabilities a proportional to W^kappa, and each draw receives weight
+W/(M*a). kappa is control$resample_power, 0.5 by default as in the paper;
+kappa=1 gives standard resampling with weights 1/M. The resampled weights are
+renormalized and their sum, which has expectation one, is included in the
+evidence estimate. Final log_evidence is the sum of log normalizing factors (a
+stochastic estimate, not exact evidence).
 
 The representative tree maximizes log(tree prior)+log(tree likelihood) among
 sampled final particles. Its score includes variable and location priors, and is
@@ -116,6 +124,14 @@ log Gamma(a+1)+log(U)/a, avoiding beta values rounded to endpoints. Group-swappe
 quadrature is symmetrized; these summaries consume no R RNG. The zero atom of
 weight 1-P(D) is included in the quantiles. Integration is approximate; the number
 of points is reported in control$effect_draws and can be increased independently.
+These summaries are computed by regions() and summary() for the nodes they
+return.
+
+Reported thresholds are original-scale values t such that original <= t
+reproduces the engine's unit-scale assignment unit <= cut for every observation.
+The value from the inverse transform is used unless floating-point rounding
+would move an observation across the cut; it is then replaced by the midpoint
+between the largest observation on the left and the smallest on the right.
 
 All region effects and intervals condition on the selected tree. Filtering nodes
 by probability is exploratory and does not provide a frequentist FDR guarantee.
@@ -136,7 +152,8 @@ exchange, row reordering, ties, endpoints, inverse transforms and public APIs.
 
 Diagnostics include ESS BEFORE resampling, final weights, root ancestor count,
 distinct tree count, finite-depth stopping and runtime. Particle payload counts
-retained C++ nodes and observation blocks at iteration boundaries; it excludes
+retained C++ nodes and observation blocks at SMC steps 1, 2, 4, 8, ... and at
+the end; it excludes
 temporary objects and R memory and is not a process memory peak.
 
 Reference: Awaya and Ma (2024), JASA 119(545), 189--201,

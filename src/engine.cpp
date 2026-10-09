@@ -198,8 +198,9 @@ DataFrame table(const Tree& t,const Prior& p) {
   CharacterVector reason(n);
   for(int j=0;j<n;++j) {
     const Node& a=t.nodes[j]; id[j]=j+1; parent[j]=a.parent+1; left[j]=a.left+1;
-    right[j]=a.right+1; depth[j]=a.depth; dim[j]=a.dim+1; n1[j]=a.n1;n2[j]=a.n2;
-    cut[j]=a.cut; frac[j]=a.fraction;
+    right[j]=a.right+1; depth[j]=a.depth; n1[j]=a.n1;n2[j]=a.n2;
+    bool internal=a.left>=0;
+    dim[j]=internal?a.dim+1:NA_INTEGER; cut[j]=internal?a.cut:NA_REAL; frac[j]=internal?a.fraction:NA_REAL;
     reason[j]=a.left>=0?"split":(a.numerical_stop?"numerical precision":(a.depth>=p.depth?"max_depth":"min_node"));
     pd[j]=a1[j]=b1[j]=a2[j]=b2[j]=signed_eff[j]=NA_REAL;
     if(a.left>=0) {
@@ -234,6 +235,7 @@ List pt_smc_cpp(NumericMatrix x,IntegerVector group,List prior,List control) {
   using namespace pt;
   Prior p(prior); int M=as<int>(control["particles"]);
   double threshold=as<double>(control["ess_threshold"]);
+  double kappa=as<double>(control["resample_power"]);
   bool keep=as<bool>(control["keep_particles"]);
   auto initial=std::make_shared<Tree>(); Node root;
   root.obs=std::make_shared<std::vector<int>>(); root.obs->reserve(x.nrow());
@@ -282,21 +284,32 @@ List pt_smc_cpp(NumericMatrix x,IntegerVector group,List prior,List control) {
     double ess=1/sq;
     bool resample=ess<threshold*M;
     if(resample) {
+      // Section 3.1 (after Lu et al., 2013): ancestors are drawn with
+      // probabilities a proportional to W^kappa and receive weights W/a.
       ++resamples; std::vector<Particle> next; next.reserve(M);
-      double u=R::runif(0,1)/M,cum=std::exp(ps[0].logw); int j=0;
+      std::vector<double> la(M);
+      for(int i=0;i<M;++i) la[i]=kappa*ps[i].logw;
+      double za=lsev(la); for(double& v:la) v-=za;
+      double u=R::runif(0,1)/M,cum=std::exp(la[0]); int j=0;
       for(int i=0;i<M;++i) {
         double target=u+(double)i/M;
-        while(j<M-1 && target>cum) cum+=std::exp(ps[++j].logw);
-        next.push_back({ps[j].tree,-std::log((double)M),ps[j].ancestor});
+        while(j<M-1 && target>cum) cum+=std::exp(la[++j]);
+        next.push_back({ps[j].tree,ps[j].logw-la[j]-std::log((double)M),ps[j].ancestor});
       }
       ps.swap(next);
+      // The resampled weights average to one in expectation; keep their sum in
+      // the evidence estimate and renormalize. For kappa = 1 the sum is one.
+      std::vector<double> lw; for(const auto& q:ps) lw.push_back(q.logw);
+      double zr=lsev(lw); logZ+=zr; for(auto& q:ps) q.logw-=zr;
     }
     std::unordered_set<Tree*> unique; std::unordered_set<int> ancestors;
     for(const auto& q:ps) { unique.insert(q.tree.get()); ancestors.insert(q.ancestor); }
     ess_trace.push_back(ess); unique_trace.push_back(unique.size());
     ancestor_trace.push_back(ancestors.size()); resampled_trace.push_back(resample);
-    peak=std::max(peak,payload(ps));
+    // Measured at rounds 1, 2, 4, 8, ... and at the end, to keep its cost small.
+    if((rounds&(rounds-1))==0) peak=std::max(peak,payload(ps));
   }
+  peak=std::max(peak,payload(ps));
   std::unordered_map<Tree*,double> nulls;
   double global=0,bestscore=neginf; int best=0;
   NumericVector weights(M),pn(M),scores(M); List particles(keep?M:0);
