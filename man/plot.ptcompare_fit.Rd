@@ -63,10 +63,15 @@ least \code{prob} and at least \code{min_n} observations of each group, ordered 
 \code{rank_by}; at most \code{top} are shown. With two or more variables, each
 panel is a scatter plot: the horizontal axis is the variable that divides
 the region (dashed line: threshold), the vertical axis another variable
-that bounds the region. The box is the region; observations inside it
-are shown as blue squares (group 1) and brown triangles (group 2), the
-others in gray. With one variable, each panel shows the distributions of
-the two groups inside the region.
+that bounds the region. Observations inside the region are shown as blue
+squares (group 1) and brown triangles (group 2), the others in gray.
+The box is the region seen in the two variables of the panel only. With
+three or more variables the region may also be bounded by variables that
+the panel does not show, so an observation can lie inside the box and
+still be gray; the symbols, not the box, show which observations are in
+the region. With two variables the box is the region itself. With one
+variable, each panel shows the distributions of the two groups inside
+the region.
 \item \code{type = "levels"}: for two variables only. One scatter plot per depth of
 the tree; each region at that depth is shaded by its \code{prob_difference}
 (as in Figure 7 of Soriano and Ma, 2017). Dotted lines show how each

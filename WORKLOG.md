@@ -73,3 +73,8 @@ evaluation, with runnable RStudio examples. No CRAN submission.
   unaffected. The `par(mfrow = c(2, 1), mar = ...)` override went with the
   second panel; the single panel uses the device defaults, which also fixes
   the "SMC step" label being clipped on tall PNG devices.
+- `?plot.ptcompare_fit` now states that with three or more variables the box
+  of a `"regions"` panel is the region projected onto the two variables drawn,
+  so an observation can lie inside the box and still be gray; the symbols, not
+  the box, mark the region. This is a description of the existing plot, not a
+  change to it.
