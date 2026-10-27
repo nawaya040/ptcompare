@@ -1,0 +1,271 @@
+---
+title: "Introduction to ptcompare"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction to ptcompare}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>",
+                      fig.width = 7, fig.height = 4.6, dpi = 120,
+                      out.width = "100%", fig.align = "center")
+has_mclust <- requireNamespace("mclust", quietly = TRUE)
+```
+
+# The method
+
+`ptcompare` compares two samples of continuous multivariate observations. It
+implements the hidden Markov Pólya tree of Awaya and Ma (2024), a nonparametric
+Bayesian model whose structure is a recursive partition of the data space.
+
+This vignette fits three comparisons: a simulation in two variables where the
+difference is confined to a small part of the plane, a set of 30 measurements
+of cell nuclei where the groups are two diagnoses, and a pair of samples drawn
+from the same distribution.
+
+```{r}
+library(ptcompare)
+```
+
+# A simulated example in two variables
+
+Both groups are standard normal in two variables, `marker_A` and `marker_B`.
+They differ in that about 15% of group 2 is drawn instead from a narrow cluster
+near `(1.6, 1.6)`.
+
+```{r}
+set.seed(11)
+n <- 1000L
+x <- matrix(rnorm(2 * n), ncol = 2,
+            dimnames = list(NULL, c("marker_A", "marker_B")))
+y <- matrix(rnorm(2 * n), ncol = 2,
+            dimnames = list(NULL, c("marker_A", "marker_B")))
+
+extra <- runif(n) < 0.15
+y[extra, ] <- cbind(rnorm(sum(extra), 1.6, 0.3),
+                    rnorm(sum(extra), 1.6, 0.3))
+sum(extra)
+```
+
+Over most of the plane the two samples are drawn from the same distribution and
+lie on top of one another. The cluster occupies a small region in the upper
+right, and it belongs to one group only.
+
+```{r, fig.cap = "The two samples. Group 2 carries an extra cluster near (1.6, 1.6)."}
+plot(rbind(x, y), type = "n", xlab = "marker_A", ylab = "marker_B")
+points(x, pch = 0, col = "#123E7C", cex = 0.6)
+points(y, pch = 2, col = "#B65D35", cex = 0.6)
+legend("topleft", c("group 1", "group 2"), pch = c(0, 2),
+       col = c("#123E7C", "#B65D35"), bty = "n")
+```
+
+`compare_pt()` takes the two samples; every other argument has a default.
+
+```{r}
+set.seed(12)
+fit <- compare_pt(x, y)
+fit
+```
+
+`prob_difference` is the posterior probability that the two distributions
+differ. That probability says only that a difference exists somewhere, but `regions()` can
+locate it. Each row is one division of the representative tree, the tree with
+the highest posterior score among those sampled, and the rows are ordered by
+`prob_difference` — which here is the probability that the groups branch
+differently at that one division, not the global quantity printed above.
+
+```{r}
+regions(fit, prob = 0.9, min_n = 40)
+```
+
+Take the first row. Its `condition` restricts attention to the observations
+with `marker_A > 0.866` and `marker_B > 0.101`, a part of the plane holding 102
+observations of group 1 and 209 of group 2. Within it the division is at
+`marker_B = 0.841`, and the two groups fall below that threshold in different
+proportions: `prob_difference` is 1.00, and `effect`, a log odds ratio of group
+1 against group 2, is 1.98, so the odds of falling below the threshold are
+about seven times higher in group 1. The `lower` and `upper` columns give a 95%
+credible interval for that log odds ratio. The region is the upper right part
+of the plane, where the simulated cluster lies, and the sign of the effect says
+that group 2 is the one over-represented above the threshold.
+
+Two further columns are reported for each division: `effect_abs`, the posterior
+mean of the absolute log odds ratio, which is not in general the absolute value
+of `effect`, and `prob_positive`, the posterior probability that the log odds
+ratio is positive.
+
+## Plots
+
+The same regions can be drawn with the data. `min_n` is passed again so that
+the panels match the rows of the table above.
+
+```{r, fig.height = 5.4, fig.cap = "The four most probable regions. The box is the region, the dashed line its threshold."}
+plot(fit, type = "regions", top = 4, min_n = 40)
+```
+
+Each panel is one region. The box is the region, the dashed line is the
+threshold that divides it, and the observations inside are drawn as blue
+squares and brown triangles, with the rest of the data in grey for context. The
+first panel is the region discussed above; the brown triangles concentrated
+inside it are the simulated cluster.
+
+The tree shows how the regions are nested and which variable each division
+uses. Here `max_depth` limits how much of the tree is drawn; it does not change
+the fit.
+
+```{r, fig.cap = "The representative tree, drawn to depth 3."}
+plot(fit, max_depth = 3)
+```
+
+With two variables the regions at each depth can also be shaded by their
+probability of a difference, which shows how the comparison narrows as the
+partition becomes finer.
+
+```{r, fig.height = 5.4, fig.cap = "Regions by depth, shaded by the probability of a difference."}
+plot(fit, type = "levels", max_depth = 3)
+```
+
+At depth 0 the only region is the whole plane, so the shading reports no more
+than that the samples differ somewhere. The shaded area contracts as the tree
+deepens, and by depth 3 it has settled on the upper right corner.
+
+# Cell nuclei from breast mass images
+
+The `wdbc` data in the **mclust** package are the Wisconsin Diagnostic Breast
+Cancer data of Street, Wolberg and Mangasarian (1993). For each of 569
+patients, a fine needle aspirate was taken from a breast mass and photographed,
+and the boundary of each cell nucleus in the image was traced. Ten geometric
+features were computed for every nucleus: radius, texture, perimeter, area,
+smoothness, compactness, concavity, concave points, symmetry and fractal
+dimension. Each feature was then summarised over the nuclei of an image by its
+mean, its standard error and an extreme value, which is how the 30 variable
+names below are composed. The mass was separately diagnosed as benign or
+malignant.
+
+```{r, eval = has_mclust}
+data("wdbc", package = "mclust")
+features <- setdiff(names(wdbc)[sapply(wdbc, is.numeric)], "ID")
+features
+table(wdbc$Diagnosis)
+```
+
+The question is how nuclear morphology differs between the two diagnoses. Here
+the groups are a label on a single data set rather than two matrices, so they
+are given through `group`. The levels of that factor fix the order, so group 1
+is `B`, the benign masses, and group 2 is `M`.
+
+```{r, eval = has_mclust}
+set.seed(2)
+fit_wdbc <- compare_pt(wdbc[, features], group = wdbc$Diagnosis)
+summary(fit_wdbc, top = 3)
+```
+
+The two diagnoses differ, and `summary()` also reports the computation: the
+effective number of particles at the end of the sequential Monte Carlo, how
+often the particles were resampled, and the running time.
+
+Asking for the regions with a probability of at least 0.9 and at least 25
+observations of each group returns two. The third division in the summary above
+is dropped by the second condition, not the first: it holds only 10 benign
+cases.
+
+```{r, eval = has_mclust}
+found <- regions(fit_wdbc, prob = 0.9, min_n = 25)
+found[, c("depth", "variable", "n1", "n2", "prob_difference", "effect")]
+```
+
+```{r, eval = has_mclust, fig.cap = "Left: the division at the root. Right: a division within the large nuclei."}
+plot(fit_wdbc, type = "regions", top = 2, min_n = 25)
+```
+
+The first region is at depth 0, which is to say it is the whole data set, and
+it reproduces the familiar result: the nuclei of malignant masses are larger.
+The division is on `Perimeter_extreme` at 102, with an effect of about 5 on the
+log odds scale. This is a difference between two marginal distributions, and
+needs no partition to find.
+
+The second region is at depth 6, and is the kind of statement that does.
+
+```{r, eval = has_mclust}
+local <- found[found$depth > 0, ][1, ]
+local$condition
+```
+
+Six conditions, all of them lower bounds on measurements of size, restrict
+attention to the images whose nuclei are large: 41 benign masses and 182
+malignant ones. Within that region the method reports a further division, and
+it falls on a measure of shape rather than size, `Nconcave_mean`, which
+summarises the concave points on the nucleus boundary.
+
+`region_data()` returns the observations of a region, with a column giving the
+group, so the division can be examined directly.
+
+```{r, eval = has_mclust}
+cells <- region_data(fit_wdbc, local$node_id)
+tapply(cells$Nconcave_mean, cells$group, median)
+tapply(cells$Nconcave_mean <= local$threshold, cells$group, mean)
+```
+
+Among these large nuclei the median benign image sits at 0.039 against 0.088
+for the malignant ones, and 76% of the benign images fall below the threshold
+against 9% of the malignant ones. The two diagnoses are therefore separated
+twice over by different features: once by size across the whole data set, and
+again by the irregularity of the nucleus boundary among the masses whose nuclei
+are large. The second statement is about a conditional distribution inside a
+subset of the data, and it is the kind of result the partition is there to
+produce.
+
+# A comparison with no difference
+
+The last comparison uses the same 30 variables, but splits the benign cases
+into two halves at random and compares those with each other. The two samples
+come from the same distribution by construction.
+
+```{r, eval = has_mclust}
+benign <- wdbc[wdbc$Diagnosis == "B", features]
+set.seed(3)
+half <- sample(c(TRUE, FALSE), nrow(benign), replace = TRUE)
+
+set.seed(4)
+fit_null <- compare_pt(benign[half, ], benign[!half, ])
+fit_null
+nrow(regions(fit_null, prob = 0.9))
+```
+
+The posterior probability of a difference is 0.07, and no division reaches a
+probability of 0.9.
+
+# Notes and further documentation
+
+The regions and effect sizes are reported for the representative tree, the one
+with the highest posterior score among the trees that were sampled. Regions
+selected by a probability threshold can be nested inside one another, and they
+carry no frequentist multiple-testing guarantee.
+
+* `?compare_pt` for the arguments, including `transform`, which sets the common
+  scale the variables are put on before the space is divided.
+* `?pt_prior` and `?pt_control` for the model and the computational budget, and
+  for the defaults used above.
+* `?regions` for the meaning of each column, and for `rank_by = "effect"`,
+  which orders by the size of a difference rather than its probability.
+* `?region_rows` and `?region_data` for extracting the observations of a
+  region.
+* `?plot.ptcompare_fit` for the plots used here. With three or more variables a
+  panel draws two of them, so the box is the region seen in those two variables
+  only, and the symbols rather than the box indicate membership. This applies
+  to both panels of the 30-variable figure above.
+* `system.file("STATISTICAL-SPECIFICATION.md", package = "ptcompare")` for the
+  model, the target distribution of the sequential Monte Carlo and the
+  definition of the effect sizes.
+
+# References
+
+Awaya, N. and Ma, L. (2024). Hidden Markov Pólya Trees for High-Dimensional
+Distributions. *Journal of the American Statistical Association*, 119(545),
+189--201. <https://doi.org/10.1080/01621459.2022.2105223>
+
+Street, W. N., Wolberg, W. H. and Mangasarian, O. L. (1993). Nuclear feature
+extraction for breast tumor diagnosis. *IS&T/SPIE International Symposium on
+Electronic Imaging: Science and Technology*, 1905, 861--870.
