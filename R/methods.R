@@ -71,7 +71,7 @@ regions <- function(x, prob = 0.5, min_n = 0L, ...) {
 #'
 #' Information about the computation of [compare_pt()], such as the number of
 #' effective particles and the running time. `plot(fit, type = "diagnostics")`
-#' shows the main quantities as graphs.
+#' shows the effective number of particles as a graph.
 #'
 #' @param x Result of [compare_pt()].
 #' @param ... Not used.
@@ -175,11 +175,8 @@ print.summary.ptcompare_fit <- function(x, ...) {
   cat(sprintf("N = %d / %d; variables = %d\n", x$sample_sizes[1], x$sample_sizes[2], x$n_variables))
   cat(sprintf("P(equal) = %.6g; P(different) = %.6g\n", x$prob_null, x$prob_difference))
   cat(sprintf("Common coordinate transformation: %s\n", x$transform))
-  tr <- x$diagnostics$trace
   cat(sprintf("Final ESS = %.1f; resampling steps = %d; elapsed = %.2f s\n",
               x$diagnostics$final_ess, x$diagnostics$resamples, x$diagnostics$elapsed_seconds))
-  if (nrow(tr)) cat(sprintf("Final root ancestors = %d; unique particle trees = %d\n",
-                            tail(tr$root_ancestors, 1), tail(tr$unique_trees, 1)))
   if (x$diagnostics$depth_limited_leaves > 0)
     cat(sprintf("Regions that reached max_depth: %d (%.1f%% of observations)\n",
                 x$diagnostics$depth_limited_leaves, 100*x$diagnostics$depth_limited_fraction))
@@ -220,8 +217,10 @@ print.summary.ptcompare_fit <- function(x, ...) {
 #'   the tree; each region at that depth is shaded by its `prob_difference`
 #'   (as in Figure 7 of Soriano and Ma, 2017). Dotted lines show how each
 #'   region is divided at the next depth.
-#' * `type = "diagnostics"`: the effective number of particles and the number
-#'   of different trees at each step of the computation.
+#' * `type = "diagnostics"`: the effective number of particles at each step of
+#'   the computation, with the resampling threshold as a dashed line and the
+#'   steps where resampling took place marked. The other recorded quantities
+#'   are in [diagnostics()].
 #'
 #' `"regions"` and `"levels"` need the data, which are kept unless
 #' `pt_control(keep_data = FALSE)` was used.
@@ -268,16 +267,10 @@ plot.ptcompare_fit <- function(x, type = c("tree", "regions", "levels", "diagnos
   if (type == "diagnostics") {
     tr <- x$diagnostics$trace
     if (!nrow(tr)) { graphics::plot.new(); graphics::title("No splits: uniform terminal model"); return(invisible(tr)) }
-    old <- graphics::par(mfrow = c(2, 1), mar = c(3.5, 4, 2, 1)); on.exit(graphics::par(old))
     graphics::plot(tr$step, tr$ess, type = "l", ylim = c(0, x$control$particles),
                    xlab = "SMC step", ylab = "ESS", main = "ESS before resampling")
     graphics::abline(h = x$control$particles*x$control$ess_threshold, lty = 2, col = "grey50")
     graphics::points(tr$step[tr$resampled == 1], tr$ess[tr$resampled == 1], col = "firebrick", pch = 16)
-    graphics::matplot(tr$step, cbind(tr$root_ancestors, tr$unique_trees), type = "l", lty = 1:2,
-                      col = c("#176B87", "#B65D35"), xlab = "SMC step", ylab = "Count",
-                      main = "Particle ancestry and diversity")
-    graphics::legend("topright", c("Root ancestors", "Unique trees"), lty = 1:2,
-                     col = c("#176B87", "#B65D35"), bty = "n")
     return(invisible(tr))
   }
   if (type == "regions")

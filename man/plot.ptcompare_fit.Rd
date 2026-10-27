@@ -71,8 +71,10 @@ the two groups inside the region.
 the tree; each region at that depth is shaded by its \code{prob_difference}
 (as in Figure 7 of Soriano and Ma, 2017). Dotted lines show how each
 region is divided at the next depth.
-\item \code{type = "diagnostics"}: the effective number of particles and the number
-of different trees at each step of the computation.
+\item \code{type = "diagnostics"}: the effective number of particles at each step of
+the computation, with the resampling threshold as a dashed line and the
+steps where resampling took place marked. The other recorded quantities
+are in \code{\link[=diagnostics]{diagnostics()}}.
 }
 }
 \details{

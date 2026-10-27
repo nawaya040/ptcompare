@@ -41,7 +41,7 @@ the particles (bytes).}
 \description{
 Information about the computation of \code{\link[=compare_pt]{compare_pt()}}, such as the number of
 effective particles and the running time. \code{plot(fit, type = "diagnostics")}
-shows the main quantities as graphs.
+shows the effective number of particles as a graph.
 }
 \examples{
 set.seed(1)

@@ -57,3 +57,19 @@ evaluation, with runnable RStudio examples. No CRAN submission.
 - Pending (user decision): figures that potential users see first, such as in
   a vignette or the README, should show data with two or more variables
   (scatter-type `regions`/`levels` plots), not one-variable histograms.
+
+## 2026-10-27
+
+- `plot(fit, type = "diagnostics")` now draws the ESS trace only. The second
+  panel (root ancestors and unique trees) was removed on user instruction:
+  particle degeneracy is worth showing as a weak point of the method in a
+  paper, but not in the package, where the plot is read as a check on the
+  user's own run. The same two numbers were dropped from the `summary()`
+  printout for the same reason, the figure and the text having carried the
+  same information; `summary()` still reports final ESS, resampling steps and
+  elapsed time. Both series stay in `diagnostics(fit)$trace` and their Rd
+  entry is unchanged, so nothing is lost programmatically, and the scripts in
+  evaluation/ that read `diagnostics(fit)$trace$root_ancestors` are
+  unaffected. The `par(mfrow = c(2, 1), mar = ...)` override went with the
+  second panel; the single panel uses the device defaults, which also fixes
+  the "SMC step" label being clipped on tall PNG devices.
