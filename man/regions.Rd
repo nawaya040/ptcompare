@@ -2,12 +2,16 @@
 % Please edit documentation in R/methods.R
 \name{regions}
 \alias{regions}
+\alias{print.ptcompare_regions}
 \title{Regions where the two groups differ}
 \usage{
 regions(x, prob = 0.5, min_n = 0L, ...)
+
+\method{print}{ptcompare_regions}(x, ...)
 }
 \arguments{
-\item{x}{Result of \code{\link[=compare_pt]{compare_pt()}}.}
+\item{x}{Result of \code{\link[=compare_pt]{compare_pt()}}, or the table returned by \code{regions()}
+when printing it.}
 
 \item{prob}{Show only rows with \code{prob_difference} at least this value
 (between 0 and 1). Use \code{prob = 0} to show all divisions.}

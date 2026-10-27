@@ -10,7 +10,8 @@
 #' row tells whether the two groups fall into the left part in different
 #' proportions.
 #'
-#' @param x Result of [compare_pt()].
+#' @param x Result of [compare_pt()], or the table returned by `regions()`
+#'   when printing it.
 #' @param prob Show only rows with `prob_difference` at least this value
 #'   (between 0 and 1). Use `prob = 0` to show all divisions.
 #' @param min_n Show only regions with at least this many observations of
@@ -57,6 +58,21 @@ regions <- function(x, prob = 0.5, min_n = 0L, ...) {
     a$n1 >= min_n & a$n2 >= min_n
   .pt_region_table(x, which(keep))
 }
+
+#' @rdname regions
+#' @export
+print.ptcompare_regions <- function(x, ...) {
+  a <- as.data.frame(x)
+  # Rounded for reading only; the returned table keeps its full precision. The
+  # thresholds in `condition` are already the shortest that stay exact.
+  for (nm in intersect(c("prob_difference", "prob_positive"), names(a)))
+    a[[nm]] <- round(a[[nm]], 4)
+  for (nm in intersect(c("effect", "effect_abs", "lower", "upper"), names(a)))
+    a[[nm]] <- round(a[[nm]], 3)
+  if (!is.null(a$threshold)) a$threshold <- signif(a$threshold, 6)
+  print(a, ...)
+  invisible(x)
+}
 # Effect quadrature is computed only for the requested nodes.
 .pt_region_table <- function(x, rows) {
   a <- x$tree[rows, , drop = FALSE]
@@ -64,7 +80,7 @@ regions <- function(x, prob = 0.5, min_n = 0L, ...) {
   cols <- c("node_id", "parent_id", "depth", "condition", "variable", "threshold",
             "n1", "n2", "prob_difference", "effect", "effect_abs", "lower", "upper", "prob_positive")
   a <- a[order(-a$prob_difference, -a$effect_abs), cols, drop = FALSE]
-  rownames(a) <- NULL; a
+  rownames(a) <- NULL; class(a) <- c("ptcompare_regions", "data.frame"); a
 }
 
 #' Computational diagnostics

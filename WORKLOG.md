@@ -95,3 +95,20 @@ evaluation, with runnable RStudio examples. No CRAN submission.
   or more variables): example 05 adds one-variable histograms, but it is the
   last example and is not referenced from the README intro, so the first
   figures a reader meets are still the two-variable ones from example 01.
+- Display precision, on user comment that the printed numbers are too long.
+  `.pt_conditions()` had `format(digits = 7)` hard-coded and the regions table
+  was a plain data frame, so it printed at `getOption("digits")`. Conditions
+  are now written with the fewest digits that still reproduce the same
+  division: `.pt_snap()` leaves slack between the largest value on the left
+  and the smallest on the right, so a shortened threshold selects exactly the
+  same rows. The digit count is chosen per threshold, not fixed; a fixed
+  `signif(, 3)` already failed on 2 of 4 nodes in a d = 3, n = 900 example.
+  Redundant clauses are also folded, since a region is an interval in each
+  variable and only the tightest bound per side matters, and clauses now
+  follow column order rather than the order of the divisions. Verified that
+  all conditions reproduce `.pt_inside()` membership for d = 1, 2, 3, 20 and
+  for n = 5000 (750 rows in total). `print.ptcompare_regions()` rounds
+  probabilities to 4 and effects to 3 decimals for reading only; the returned
+  data frame keeps full precision. The `threshold` column is shown at
+  `signif(, 6)`, which still pads trailing zeros because a data frame column
+  shares one decimal count; left as is.

@@ -202,7 +202,7 @@ compare_pt <- function(x, y = NULL, group = NULL, support = NULL,
                        xout = tree$cut_unit[i], ties = "ordered")$y
     .pt_snap(thr, tree$cut_unit[i], input$original[, j], input$unit[, j])
   }, numeric(1))
-  tree$condition <- .pt_conditions(tree)
+  tree$condition <- .pt_conditions(tree, input$original, input$variables)
   if (!any(internal))
     warning("No split was possible: there are fewer observations than 'min_node' ",
             "(see ?pt_prior). prob_difference is 0.", call. = FALSE)
@@ -335,15 +335,43 @@ compare_pt <- function(x, y = NULL, group = NULL, support = NULL,
   if (thr >= lmax && thr < rmin) return(thr)
   if (is.finite(rmin) && is.finite(lmax)) (lmax + rmin) / 2 else lmax
 }
-.pt_conditions <- function(tree) {
-  conditions <- rep("all observations", nrow(tree))
-  for (j in seq_len(nrow(tree))[-1L]) {
-    par <- tree$parent_id[j]
-    clause <- paste0(tree$variable[par], if (tree$left[par] == j) " <= " else " > ",
-                     format(tree$threshold[par], digits = 7, trim = TRUE))
-    conditions[j] <- if (par == 1L) clause else paste(conditions[par], clause, sep = " & ")
+# Fewest digits that still divide the observations exactly as thr does, so a
+# printed condition selects the same rows as the stored threshold.
+.pt_short <- function(thr, original) {
+  left <- original <= thr
+  lmax <- if (any(left)) max(original[left]) else -Inf
+  rmin <- if (any(!left)) min(original[!left]) else Inf
+  for (k in seq_len(15)) {
+    s <- signif(thr, k)
+    if (s >= lmax && s < rmin) return(format(s, digits = 15, trim = TRUE))
   }
-  conditions
+  format(thr, digits = 15, trim = TRUE)
+}
+# One clause per bound that is still in force: a region is an interval in each
+# variable, so only the tightest bound on each side is kept. Clauses follow the
+# column order of the data, not the order of the divisions.
+.pt_conditions <- function(tree, original, variables) {
+  n <- nrow(tree); d <- length(variables)
+  lo <- matrix(-Inf, n, d); hi <- matrix(Inf, n, d)
+  lo_text <- hi_text <- matrix("", n, d)
+  label <- character(n)
+  for (i in which(tree$left > 0))
+    label[i] <- .pt_short(tree$threshold[i], original[, tree$variable_id[i]])
+  for (j in seq_len(n)[-1L]) {
+    par <- tree$parent_id[j]; v <- tree$variable_id[par]
+    lo[j, ] <- lo[par, ]; hi[j, ] <- hi[par, ]
+    lo_text[j, ] <- lo_text[par, ]; hi_text[j, ] <- hi_text[par, ]
+    if (tree$left[par] == j) { hi[j, v] <- tree$threshold[par]; hi_text[j, v] <- label[par] }
+    else { lo[j, v] <- tree$threshold[par]; lo_text[j, v] <- label[par] }
+  }
+  vapply(seq_len(n), function(j) {
+    clauses <- character(0)
+    for (v in seq_len(d)) {
+      if (is.finite(lo[j, v])) clauses <- c(clauses, paste0(variables[v], " > ", lo_text[j, v]))
+      if (is.finite(hi[j, v])) clauses <- c(clauses, paste0(variables[v], " <= ", hi_text[j, v]))
+    }
+    if (!length(clauses)) "all observations" else paste(clauses, collapse = " & ")
+  }, character(1))
 }
 
 # Deterministic low-discrepancy integration: does not consume the user's RNG.
