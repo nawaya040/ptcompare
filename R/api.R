@@ -152,6 +152,10 @@ pt_prior <- function(max_depth = 8L, split_grid = 15L, min_node = 20L,
 #'     \item{`group_names`, `sample_sizes`, `variables`}{Group names, number of
 #'       observations per group and names of the variables used.}
 #'     \item{`prior`, `control`, `transform`}{The settings used.}
+#'     \item{`data`, `group`}{The observations in the original units and
+#'       their group (0 or 1), in the order they were given; `NULL` when
+#'       `pt_control(keep_data = FALSE)` was used. [region_rows()] and
+#'       [region_data()] use them to return the observations of a region.}
 #'   }
 #' @details Variables that take the same value in all observations are
 #'   removed with a warning. Missing (`NA`) and infinite values are not
@@ -161,7 +165,7 @@ pt_prior <- function(max_depth = 8L, split_grid = 15L, min_node = 20L,
 #' @references Awaya, N. and Ma, L. (2024). Hidden Markov Pólya Trees for
 #'   High-Dimensional Distributions. *Journal of the American Statistical
 #'   Association*, 119(545), 189--201. \doi{10.1080/01621459.2022.2105223}
-#' @seealso [regions()], [summary()][summary.ptcompare_fit],
+#' @seealso [regions()], [region_data()], [summary()][summary.ptcompare_fit],
 #'   [plot()][plot.ptcompare_fit], [pt_prior()], [pt_control()]
 #' @examples
 #' set.seed(1)

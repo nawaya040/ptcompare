@@ -112,3 +112,14 @@ evaluation, with runnable RStudio examples. No CRAN submission.
   data frame keeps full precision. The `threshold` column is shown at
   `signif(, 6)`, which still pads trailing zeros because a data frame column
   shares one decimal count; left as is.
+- Access to the regions that differ most, on user question. Ranking was
+  already easy (`regions()` is sorted, `summary()` shows the top 6,
+  `plot(type = "regions")` the top 9), but there was no way to get the
+  observations: only five exported functions, none returning membership, and
+  `fit$data` / `fit$group` were not in the `@return` of `compare_pt`. Retyping
+  the `condition` string was the only route. Added `region_rows()` (logical
+  vector over the data in the order given) and `region_data()` (those
+  observations with a group column, row names = positions), documented
+  `data` / `group` in `compare_pt`, and added `rank_by` to `regions()` to
+  match the argument `plot()` already had. `.pt_need_data()` said "This plot
+  needs the data"; it is now worded for both callers.

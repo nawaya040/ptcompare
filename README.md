@@ -94,6 +94,18 @@ fit_paper <- compare_pt(x, y, transform = "range")  # 論文の線形変換
 
 `regions()` の各行は代表木の内部ノードです。`condition` で示される領域の中で、`variable <= threshold` の左側へ入る条件付き確率が二群で異なるかを調べています。`prob_difference` はその局所分割の差の事後確率、`effect` は群1対群2の符号付きlog odds ratioの事後平均です。正なら群1の方が左側へ入りやすいという意味になります。`effect_abs` は絶対log odds ratioの事後平均、`lower` と `upper` は差なしの点質量も含む95%信用区間です。
 
+`regions()` は既定で `prob_difference` の大きい順に並びます。効果量の大きい順にする場合は `rank_by = "effect"` を指定します（`plot(fit, type="regions")` と同じ語彙です）。
+
+差の大きい領域の観測そのものを取り出すには `region_rows()` と `region_data()` を使います。
+
+```r
+top <- regions(fit, prob = 0.9)$node_id[1]   # 差が最も大きい領域
+region_data(fit, top)                        # その領域の観測（群のラベル付き）
+mydata[region_rows(fit, top), ]              # 元のdata.frameを同じ条件で絞る
+```
+
+`region_rows()` は観測ごとのTRUE/FALSEを、`compare_pt()` に渡した順（`x`の行、続いて`y`の行。`group=`を使った場合は元のdata.frameの行順）で返します。どちらも推定時にデータを保持している必要があります（既定で保持、`pt_control(keep_data = FALSE)` を指定した場合は不可）。
+
 これらの局所量は代表木に条件付けた結果です。代表木はサンプルした候補の中で事後スコアが最大のものを選びます。抽出した領域は親子関係で重なる場合があり、確率閾値による抽出に頻度論的な多重検定保証は付けていません。
 
 図は表示深さで切り詰められ、`+` は下に枝が続くことを示します。図の切り詰めによって推定結果は変わりません。`plot(fit, type="regions")` は差の大きい領域（既定では `prob_difference` が0.5以上で各群50観測以上、最大9個）を並べます。2変数以上では各領域を散布図上の枠として示して枠内の観測を群ごとの記号で描き、1変数では領域内の2群の分布を描きます。`node=` で特定の領域を指定でき、1つだけなら大きな1枚になります。`type="levels"`（2変数のみ）は木の深さごとに領域を差の確率の濃淡で塗ります。

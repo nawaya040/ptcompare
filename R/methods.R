@@ -16,9 +16,14 @@
 #'   (between 0 and 1). Use `prob = 0` to show all divisions.
 #' @param min_n Show only regions with at least this many observations of
 #'   each group.
+#' @param rank_by Which divisions to put first. `"probability"` (default):
+#'   largest `prob_difference`, the posterior probability of a difference.
+#'   `"effect"`: largest `effect_abs`, the size of the difference. The other
+#'   quantity breaks ties. The same choice is available in
+#'   `plot(fit, type = "regions")`.
 #' @param ... Not used.
-#' @return A data frame with one row per division, sorted by
-#'   `prob_difference` (largest first). Columns:
+#' @return A data frame with one row per division, sorted by `rank_by`
+#'   (largest first). Columns:
 #'   \describe{
 #'     \item{`node_id`, `parent_id`, `depth`}{Position of the region in the
 #'       tree (as in `plot(fit)`); depth 0 is the whole data space.}
@@ -41,7 +46,7 @@
 #'       likely than group 2 to be in the left part.}
 #'   }
 #' @seealso [compare_pt()]; `plot(fit, type = "regions")` draws these regions
-#'   with the data.
+#'   with the data; [region_data()] returns the observations of one region.
 #' @examples
 #' set.seed(1)
 #' x <- matrix(rnorm(200), ncol = 2)
@@ -50,13 +55,15 @@
 #' regions(fit)
 #' regions(fit, prob = 0.9, min_n = 20)
 #' @export
-regions <- function(x, prob = 0.5, min_n = 0L, ...) {
+regions <- function(x, prob = 0.5, min_n = 0L,
+                    rank_by = c("probability", "effect"), ...) {
   .pt_fit(x); .pt_dots(...); .pt_number(prob, "prob", 0, 1)
   .pt_integer(min_n, "min_n", 0, .Machine$integer.max)
+  rank_by <- match.arg(rank_by)
   a <- x$tree
   keep <- a$left > 0 & !is.na(a$prob_difference) & a$prob_difference >= prob &
     a$n1 >= min_n & a$n2 >= min_n
-  .pt_region_table(x, which(keep))
+  .pt_region_table(x, which(keep), rank_by)
 }
 
 #' @rdname regions
@@ -73,13 +80,69 @@ print.ptcompare_regions <- function(x, ...) {
   print(a, ...)
   invisible(x)
 }
+#' Observations in a region
+#'
+#' `region_rows()` says which observations fall in a region of the
+#' representative tree, and `region_data()` returns those observations. Use
+#' them to look at the subsets that [regions()] reports as the most different.
+#'
+#' A region is any node of the tree, not only a divided one: node 1 is the
+#' whole data space, and the `node_id` column of [regions()] or the numbers in
+#' `plot(fit)` identify the others.
+#'
+#' @param x Result of [compare_pt()].
+#' @param node `node_id` of one region.
+#' @param ... Not used.
+#' @return `region_rows()`: a logical vector with one entry per observation,
+#'   `TRUE` for those in the region. The entries follow the order in which the
+#'   data were given to [compare_pt()]: the rows of `x` and then the rows of
+#'   `y`, or the rows of the single data set when `group` was used.
+#'   `region_data()`: a data frame of the observations in the region, with one
+#'   column per variable in the original units and a last column holding the
+#'   group, named `group` unless a variable already has that name. Its row
+#'   names are the positions in that same order.
+#'
+#'   Both need the data, which are kept unless `pt_control(keep_data = FALSE)`
+#'   was used.
+#' @seealso [regions()] for which regions differ most;
+#'   `plot(fit, type = "regions")` to draw them.
+#' @examples
+#' set.seed(1)
+#' x <- matrix(rnorm(200), ncol = 2, dimnames = list(NULL, c("a", "b")))
+#' y <- matrix(rnorm(200, mean = 0.8), ncol = 2, dimnames = list(NULL, c("a", "b")))
+#' fit <- compare_pt(x, y, control = pt_control(particles = 32))
+#' top <- regions(fit)$node_id[1]
+#' sum(region_rows(fit, top))
+#' head(region_data(fit, top))
+#' @export
+region_rows <- function(x, node, ...) {
+  .pt_fit(x); .pt_dots(...); .pt_need_data(x)
+  .pt_integer(node, "node", 1, nrow(x$tree))
+  .pt_inside(x, .pt_bounds(x), node)
+}
+
+#' @rdname region_rows
+#' @export
+region_data <- function(x, node, ...) {
+  rows <- region_rows(x, node, ...)
+  a <- as.data.frame(x$data[rows, , drop = FALSE])
+  # make.unique keeps the added column distinct from a variable called "group".
+  names(a) <- make.unique(names(a))
+  label <- make.unique(c(names(a), "group"))[length(a) + 1L]
+  a[[label]] <- factor(x$group_names[x$group[rows] + 1L], levels = x$group_names)
+  rownames(a) <- which(rows)
+  a
+}
+
 # Effect quadrature is computed only for the requested nodes.
-.pt_region_table <- function(x, rows) {
+.pt_region_table <- function(x, rows, rank_by = "probability") {
   a <- x$tree[rows, , drop = FALSE]
   a <- cbind(a, .pt_effects(a, x$control$effect_draws))
   cols <- c("node_id", "parent_id", "depth", "condition", "variable", "threshold",
             "n1", "n2", "prob_difference", "effect", "effect_abs", "lower", "upper", "prob_positive")
-  a <- a[order(-a$prob_difference, -a$effect_abs), cols, drop = FALSE]
+  ord <- if (rank_by == "effect") order(-a$effect_abs, -a$prob_difference)
+         else order(-a$prob_difference, -a$effect_abs)
+  a <- a[ord, cols, drop = FALSE]
   rownames(a) <- NULL; class(a) <- c("ptcompare_regions", "data.frame"); a
 }
 
@@ -348,7 +411,9 @@ plot.ptcompare_fit <- function(x, type = c("tree", "regions", "levels", "diagnos
 }
 
 .pt_need_data <- function(x) {
-  if (is.null(x$data)) stop("This plot needs the data; use pt_control(keep_data = TRUE).", call. = FALSE)
+  if (is.null(x$data))
+    stop("The data are not stored in this result; refit with pt_control(keep_data = TRUE).",
+         call. = FALSE)
 }
 # Scatter-plot symbols: group 1 dark blue squares, group 2 brown triangles.
 .pt_cols <- c("#123E7C", "#B65D35")

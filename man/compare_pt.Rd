@@ -64,6 +64,10 @@ gives an easier-to-read table of its divisions.}
 \item{\code{group_names}, \code{sample_sizes}, \code{variables}}{Group names, number of
 observations per group and names of the variables used.}
 \item{\code{prior}, \code{control}, \code{transform}}{The settings used.}
+\item{\code{data}, \code{group}}{The observations in the original units and
+their group (0 or 1), in the order they were given; \code{NULL} when
+\code{pt_control(keep_data = FALSE)} was used. \code{\link[=region_rows]{region_rows()}} and
+\code{\link[=region_data]{region_data()}} use them to return the observations of a region.}
 }
 }
 \description{
@@ -106,6 +110,6 @@ High-Dimensional Distributions. \emph{Journal of the American Statistical
 Association}, 119(545), 189--201. \doi{10.1080/01621459.2022.2105223}
 }
 \seealso{
-\code{\link[=regions]{regions()}}, \link[=summary.ptcompare_fit]{summary()},
+\code{\link[=regions]{regions()}}, \code{\link[=region_data]{region_data()}}, \link[=summary.ptcompare_fit]{summary()},
 \link[=plot.ptcompare_fit]{plot()}, \code{\link[=pt_prior]{pt_prior()}}, \code{\link[=pt_control]{pt_control()}}
 }

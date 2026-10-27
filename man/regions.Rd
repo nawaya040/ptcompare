@@ -5,7 +5,7 @@
 \alias{print.ptcompare_regions}
 \title{Regions where the two groups differ}
 \usage{
-regions(x, prob = 0.5, min_n = 0L, ...)
+regions(x, prob = 0.5, min_n = 0L, rank_by = c("probability", "effect"), ...)
 
 \method{print}{ptcompare_regions}(x, ...)
 }
@@ -19,11 +19,17 @@ when printing it.}
 \item{min_n}{Show only regions with at least this many observations of
 each group.}
 
+\item{rank_by}{Which divisions to put first. \code{"probability"} (default):
+largest \code{prob_difference}, the posterior probability of a difference.
+\code{"effect"}: largest \code{effect_abs}, the size of the difference. The other
+quantity breaks ties. The same choice is available in
+\code{plot(fit, type = "regions")}.}
+
 \item{...}{Not used.}
 }
 \value{
-A data frame with one row per division, sorted by
-\code{prob_difference} (largest first). Columns:
+A data frame with one row per division, sorted by \code{rank_by}
+(largest first). Columns:
 \describe{
 \item{\code{node_id}, \code{parent_id}, \code{depth}}{Position of the region in the
 tree (as in \code{plot(fit)}); depth 0 is the whole data space.}
@@ -68,5 +74,5 @@ regions(fit, prob = 0.9, min_n = 20)
 }
 \seealso{
 \code{\link[=compare_pt]{compare_pt()}}; \code{plot(fit, type = "regions")} draws these regions
-with the data.
+with the data; \code{\link[=region_data]{region_data()}} returns the observations of one region.
 }
