@@ -21,4 +21,18 @@ null_fit <- compare_pt(null_x, null_y, transform = "range")
 print(summary(null_fit))
 plot(null_fit)
 
+# Three variables with identical N(0,1) margins; only the correlations differ.
+set.seed(65)
+n3 <- 900L
+x3 <- matrix(rnorm(3*n3), ncol = 3, dimnames = list(NULL, c("A", "B", "C")))
+R <- matrix(c(1, .7, .7,  .7, 1, .7,  .7, .7, 1), 3)
+y3 <- matrix(rnorm(3*n3), ncol = 3) %*% chol(R)
+colnames(y3) <- c("A", "B", "C")
+set.seed(66)
+dependence_fit3 <- compare_pt(x3, y3, transform = "range")
+print(summary(dependence_fit3))
+# With three or more variables each panel draws two of them, so the box is the
+# region seen in those two only; the symbols, not the box, show what is inside.
+plot(dependence_fit3, type = "regions")
+
 # P(different) is a posterior probability under the finite model, not a p-value.
