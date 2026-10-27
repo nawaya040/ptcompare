@@ -3,7 +3,7 @@
 # Provisional example (added 2026-10-27 on user request): it shows how the
 # output and the plots look with one variable and with three variables. It has
 # not been through the review the other examples had, and it may be revised,
-# renamed or dropped. See WORKLOG.md (2026-10-27) before relying on it.
+# renamed or dropped.
 source("scripts/load-local.R")
 
 # ---- One variable -----------------------------------------------------------
