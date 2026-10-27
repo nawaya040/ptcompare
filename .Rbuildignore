@@ -12,3 +12,5 @@
 ^ptcompare_.*$
 ^ptcompare\.Rcheck$
 ^review$
+^cran-comments\.md$
+^\.Rhistory$

@@ -123,3 +123,71 @@ evaluation, with runnable RStudio examples. No CRAN submission.
   `data` / `group` in `compare_pt`, and added `rank_by` to `regions()` to
   match the argument `plot()` already had. `.pt_need_data()` said "This plot
   needs the data"; it is now worded for both callers.
+- Added `vignettes/ptcompare.Rmd`, the package's introduction, after a review
+  of what data could carry a convincing example. Written in English to match
+  DESCRIPTION and the Rd files; the README stays Japanese. Three parts: a
+  two-variable simulation where 15% of group 2 comes from a planted cluster
+  (`region_rows()` then shows 14% of group 2 overall against 68% inside the
+  reported region, so the recovery is checked, not asserted); `mclust::wdbc`,
+  30 nucleus measurements, where the root split is on size but a depth-6
+  region of large nuclei still separates on shape (`Nconcave_mean` below the
+  threshold for 76% of benign against 9% of malignant); and a random split of
+  the benign cases, which gives P = 0.07 and no region.
+- Data selection for the vignette, recorded because the obvious choices are
+  traps: `datasets::penguins` and `survival::flchain` are separated by a
+  single variable, so the tree degenerates and the method's point is invisible;
+  `kernlab::musk` is 80% ties; `ISLR::Caravan` and `kernlab::spam` are counts
+  or zero-inflated. `caret::segmentationData` (57 channels, n = 2019, with its
+  own train/test split as a built-in null) was the closest analogue of the
+  paper's flow cytometry example but drags in ggplot2, recipes and pROC;
+  `mclust::wdbc` was chosen instead because mclust imports only base packages.
+  Conclusions on wdbc were unchanged for max_depth 6/8/10/12 and for 256/1024
+  particles across three seeds.
+- Vignette infrastructure: `VignetteBuilder: knitr`, and knitr, rmarkdown and
+  mclust added to Suggests. The mclust chunks are guarded with
+  `eval = requireNamespace("mclust")` so the vignette still builds without it.
+  `R CMD build` produces a 192 KB tarball and `R CMD check --no-manual` is
+  Status: OK, no ERRORs, WARNINGs or NOTEs.
+- Vignette prose rewritten on user instruction: the first draft read as
+  promotional copy (rhetorical openings, claims about what the method is for,
+  emphasis on what competing tests cannot do). Rewritten in the register of an
+  analysis report, stating what is computed and what the output means. Code
+  and figures unchanged, so every reported number is identical. A scatter plot
+  of the simulated two-variable data was added before the first fit, on user
+  request, so the toy example is visible before it is analysed.
+- Vignette reviewed by three independent agents given the rendered document
+  only, the same prompt, and no background on the method. All three returned
+  "not self-contained" on both questions asked, and converged on the same
+  defects. Three were factual errors, each confirmed by computation here:
+  (1) exp(effect) was read as a probability ratio ("seven times as likely");
+  it is an odds ratio, the proportions being 60.8% against 17.7%. (2) "size
+  has largely been used up as a way of telling the diagnoses apart" is false
+  inside node 23: Area_mean medians are 674.5 against 1003.5, KS p = 9e-14,
+  and the figure printed beneath the sentence shows it. (3) Nconcave_mean was
+  described as an average count of concave sections, but its values lie in
+  [0, 0.2012], like the other dimensionless shape indices.
+- Other fixes from the same review: the stated row ordering of `regions()` was
+  wrong (it is by prob_difference); `plot(type = "regions", top = 4)` dropped
+  the second-ranked region because its own `min_n` default is 50 against the
+  40 passed to `regions()`, so the plot call now passes `min_n = 40` and the
+  panels match the table; the method section defined the effect as a gap
+  between probabilities and the rest of the document as a log odds ratio; the
+  group-to-level mapping (group 1 = B) was never stated; the single-node plot
+  of region 23 duplicated a panel already shown; the 30 variable names were
+  promised and never printed; the rank transform was never reconciled with
+  "reported in the units of the original data"; `max_depth` was used for the
+  display limit and the model limit without distinction; `effect_abs` and
+  `prob_positive` were printed but never defined; the unsupported claim that a
+  per-variable test "would report the same thing" was removed; the max_depth
+  refit now prints depth_limited_fraction (0.861 against 0.726) so the check
+  can actually fail; the null fit is printed, which supplies its group sizes;
+  and every figure has a caption instead of knitr's chunk placeholder.
+- Two claims in the reviews were wrong and were not acted on. All three
+  inferred heap numbering for `node_id` from the shallow part of the first
+  tree and concluded node 23 could not be at depth 6; ids are assigned in
+  creation order and `left == 2 * node_id` fails in general. One review called
+  `effect_abs` differing from `|effect|` a rounding artefact; they are
+  different posterior functionals. Both misreadings were caused by missing
+  definitions, which is why the definitions were added. A third complaint, YAML
+  appearing as body text, was an artefact of knitting to Markdown for review.
+  `R CMD check --no-manual` remains Status: OK; the tarball is 183 KB.

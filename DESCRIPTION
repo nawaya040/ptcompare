@@ -10,11 +10,14 @@ Description: Bayesian comparison of two multivariate distributions using
     for overall differences, interpretable partition trees, local effect
     sizes and computational diagnostics. Posterior computation combines
     sequential Monte Carlo and recursive message passing.
+URL: https://github.com/nawaya040/ptcompare
+BugReports: https://github.com/nawaya040/ptcompare/issues
 License: GPL (>= 2)
 Encoding: UTF-8
 Imports: Rcpp, graphics, grDevices, stats, utils
 LinkingTo: Rcpp
-Suggests: testthat (>= 3.0.0)
+Suggests: testthat (>= 3.0.0), knitr, rmarkdown, mclust
+VignetteBuilder: knitr
 Config/testthat/edition: 3
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3

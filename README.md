@@ -4,53 +4,50 @@
 
 現在は開発版0.0.1です。CRANへの提出はまだ行っていません。
 
-## RStudioで試す
+## インストール
 
-このフォルダの **ptcompare.Rproj** を開き、Consoleで次を実行してください。このPCではR 4.5.2用に、プロジェクト内の `.local-library` へインストール済みです。
-
-```r
-source("examples/01-local-shift.R")
-```
-
-`fit`、`region_table`、`x`、`y` がEnvironmentに残り、Plotsペインに木、局所領域の比較、計算診断が表示されます。Plotsの戻る矢印で前の図を確認できます。
+RcppとC++コンパイラが必要です。WindowsではRtoolsを用意してください。
 
 ```r
-summary(fit)
-regions(fit, prob = 0.9, min_n = 40)
-plot(fit, max_depth = 3)
-plot(fit, type = "regions", node = 2)
-plot(fit, type = "regions")   # 効果の大きい領域を散布図で並べる
-plot(fit, type = "levels")    # 2変数のとき: 木の深さごとに差の確率で塗り分け
+# install.packages("remotes")
+remotes::install_github("nawaya040/ptcompare")
 ```
 
-別のPCや別のR環境でソースからインストールする場合は、RcppとC++コンパイラが必要です。Windowsでは対応するRtoolsを用意し、Rセッションを再起動してから実行します。
+## 使い方
 
 ```r
-source("scripts/install-local.R")
-source("examples/01-local-shift.R")
+library(ptcompare)
+
+set.seed(1)
+x <- matrix(rnorm(400), ncol = 2, dimnames = list(NULL, c("marker_A", "marker_B")))
+y <- matrix(rnorm(400, mean = 0.8), ncol = 2, dimnames = list(NULL, c("marker_A", "marker_B")))
+
+fit <- compare_pt(x, y)
+fit                            # 全体の差の事後確率
+summary(fit)                   # 設定、計算の報告、差の大きい分割
+regions(fit, prob = 0.9)       # 差のある領域の一覧
+
+plot(fit)                      # 代表木
+plot(fit, type = "regions")    # 効果の大きい領域を散布図で並べる
+plot(fit, type = "levels")     # 2変数のとき: 木の深さごとに差の確率で塗り分け
 ```
 
-インストール先はプロジェクト内だけです。ソースを修正した後に再インストールする場合も、RStudioのSession → Restart Rを先に実行してください。
+## Vignette
 
-## 用意した例
+パッケージの紹介は vignette にまとめています（CRAN提出を見据えて英語）。
 
-| ファイル | 確認できること |
-| --- | --- |
-| `examples/00-tryout.R` | 試用スクリプト。基本操作、結果の読み方、iris での実データ例、設定の変え方を順に実行（全体で約10秒） |
-| `examples/01-local-shift.R` | 既知の部分集団だけに分布差がある2変量データ。実行はこのPCで約10秒程度 |
-| `examples/02-dependence-and-null.R` | 周辺分布が同じで相関だけが異なる例と、帰無分布の例 |
-| `examples/03-stability.R` | 同じデータ・同じモデルで粒子数と乱数seedを変えて実行 |
-| `examples/04-high-dimensional.R` | 20変量の例。既定の順位変換と、論文の線形変換の両方で実行 |
-| `examples/05-one-and-three-variables.R` | 1変量と3変量の例（暫定・レビュー未了）。1変量での分布の重ね描きと、3変量での領域図の見え方 |
+```r
+vignette("ptcompare")
+```
 
-複数回の推定を行う3番目の例は、1回の推定より時間がかかります。実行時間はデータとモデル設定に依存します。
+2変量のシミュレーション（仕込んだ差を復元できることを確認）、`mclust::wdbc` の細胞核30変数の解析（サイズでは説明がつかない局所的な差）、差がないデータでの挙動、の3部構成です。
 
 ## 自分のデータを比較する
 
 `x` と `y` は、同じ列を同じ順序で持つ数値行列または数値だけのdata.frameです。
 
 ```r
-source("scripts/load-local.R")
+library(ptcompare)
 set.seed(123)
 fit <- compare_pt(x, y)
 
@@ -110,11 +107,43 @@ mydata[region_rows(fit, top), ]              # 元のdata.frameを同じ条件�
 
 図は表示深さで切り詰められ、`+` は下に枝が続くことを示します。図の切り詰めによって推定結果は変わりません。`plot(fit, type="regions")` は差の大きい領域（既定では `prob_difference` が0.5以上で各群50観測以上、最大9個）を並べます。2変数以上では各領域を散布図上の枠として示して枠内の観測を群ごとの記号で描き、1変数では領域内の2群の分布を描きます。`node=` で特定の領域を指定でき、1つだけなら大きな1枚になります。`type="levels"`（2変数のみ）は木の深さごとに領域を差の確率の濃淡で塗ります。
 
+モデル、SMCの目標分布、全体帰無確率、効果量の定義は統計仕様にまとめています。
+
+```r
+file.show(system.file("STATISTICAL-SPECIFICATION.md", package = "ptcompare"))
+```
+
+## リポジトリから使う場合
+
+以下はソースをクローンした場合の手順で、インストール済みパッケージには含まれません。
+
+**ptcompare.Rproj** を開き、Consoleで次を一度実行するとプロジェクト内の `.local-library` へインストールされます。ソースを修正して再インストールする場合も、RStudioのSession → Restart Rを先に実行してください。
+
+```r
+source("scripts/install-local.R")
+source("examples/01-local-shift.R")
+```
+
+`fit`、`region_table`、`x`、`y` がEnvironmentに残り、Plotsペインに木、局所領域の比較、計算診断が表示されます。Plotsの戻る矢印で前の図を確認できます。
+
+| ファイル | 確認できること |
+| --- | --- |
+| `examples/00-tryout.R` | 試用スクリプト。基本操作、結果の読み方、iris での実データ例、設定の変え方を順に実行（全体で約10秒） |
+| `examples/00-tryout-dimensions.R` | 1変量・2変量・3変量を同じ順番でたどり、次元ごとの見え方を比べる |
+| `examples/01-local-shift.R` | 既知の部分集団だけに分布差がある2変量データ |
+| `examples/02-dependence-and-null.R` | 周辺分布が同じで相関だけが異なる例と、帰無分布の例 |
+| `examples/03-stability.R` | 同じデータ・同じモデルで粒子数と乱数seedを変えて実行 |
+| `examples/04-high-dimensional.R` | 20変量の例。既定の順位変換と、論文の線形変換の両方で実行 |
+| `examples/05-one-and-three-variables.R` | 1変量と3変量の例（暫定・レビュー未了） |
+
+複数回の推定を行う3番目の例は、1回の推定より時間がかかります。実行時間はデータとモデル設定に依存します。
+
 ## 検証・再現
 
-- [統計仕様](inst/STATISTICAL-SPECIFICATION.md): モデル、SMCの目標分布、全体帰無確率、効果量の定義。
-- [評価レポート](evaluation/REPORT.md): 開発時の検証記録（反復実験、比較手法、計算性能）。
+これらもリポジトリ内のみです。
+
 - `tests/testthat/`: 独立なR全列挙による固定木・適応木の検証とAPIテスト。
+- `evaluation/REPORT.md`: 開発時の検証記録（反復実験、比較手法、計算性能）。
 - `evaluation/results/`: seed付きの実験結果CSVと実行環境。
 
 ```r
