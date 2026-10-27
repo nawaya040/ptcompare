@@ -107,7 +107,7 @@ plot(fit, type = "regions", top = 4, min_n = 40)
 
 Each panel is one region. The box is the region, the dashed line is the
 threshold that divides it, and the observations inside are drawn as blue
-squares and brown triangles, with the rest of the data in grey for context. The
+squares and brown triangles, with the rest of the data in gray for context. The
 first panel is the region discussed above; the brown triangles concentrated
 inside it are the simulated cluster.
 
@@ -139,7 +139,7 @@ patients, a fine needle aspirate was taken from a breast mass and photographed,
 and the boundary of each cell nucleus in the image was traced. Ten geometric
 features were computed for every nucleus: radius, texture, perimeter, area,
 smoothness, compactness, concavity, concave points, symmetry and fractal
-dimension. Each feature was then summarised over the nuclei of an image by its
+dimension. Each feature was then summarized over the nuclei of an image by its
 mean, its standard error and an extreme value, which is how the 30 variable
 names below are composed. The mass was separately diagnosed as benign or
 malignant.
@@ -197,7 +197,7 @@ Six conditions, all of them lower bounds on measurements of size, restrict
 attention to the images whose nuclei are large: 41 benign masses and 182
 malignant ones. Within that region the method reports a further division, and
 it falls on a measure of shape rather than size, `Nconcave_mean`, which
-summarises the concave points on the nucleus boundary.
+summarizes the concave points on the nucleus boundary.
 
 `region_data()` returns the observations of a region, with a column giving the
 group, so the division can be examined directly.
