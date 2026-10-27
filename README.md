@@ -41,6 +41,7 @@ source("examples/01-local-shift.R")
 | `examples/02-dependence-and-null.R` | 周辺分布が同じで相関だけが異なる例と、帰無分布の例 |
 | `examples/03-stability.R` | 同じデータ・同じモデルで粒子数と乱数seedを変えて実行 |
 | `examples/04-high-dimensional.R` | 20変量の例。既定の順位変換と、論文の線形変換の両方で実行 |
+| `examples/05-one-and-three-variables.R` | 1変量と3変量の例（暫定・レビュー未了）。1変量での分布の重ね描きと、3変量での領域図の見え方 |
 
 複数回の推定を行う3番目の例は、1回の推定より時間がかかります。実行時間はデータとモデル設定に依存します。
 

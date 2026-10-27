@@ -78,3 +78,20 @@ evaluation, with runnable RStudio examples. No CRAN submission.
   so an observation can lie inside the box and still be gray; the symbols, not
   the box, mark the region. This is a description of the existing plot, not a
   change to it.
+- Added `examples/05-one-and-three-variables.R` (one variable: equal mean and
+  variance, different shape, plus a null; three variables: a difference
+  confined to a box in X and Y, and a dependence-only difference). PROVISIONAL
+  on user instruction: written in this session to inspect d = 1 and d = 3
+  behavior, not reviewed to the standard of examples 01-04, and subject to
+  revision, renaming or removal. The file header and the README row say so.
+  Decide its status before any release step; if it stays, it needs the same
+  check the other examples had.
+- Observed while writing it, recorded here rather than in user documentation
+  (AGENTS.md): with one variable and `midpoint_spike = TRUE` the particles can
+  collapse to a single tree (`unique_trees = 1`, no resampling), because there
+  is no choice of splitting variable left. The ESS plot is then uninformative
+  by construction. Not acted on.
+- Note for the 2026-10-09 pending item (first figures users see should have two
+  or more variables): example 05 adds one-variable histograms, but it is the
+  last example and is not referenced from the README intro, so the first
+  figures a reader meets are still the two-variable ones from example 01.
