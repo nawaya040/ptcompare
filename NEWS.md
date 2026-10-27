@@ -1,34 +1,39 @@
-# ptcompare 0.0.1 (development)
+# ptcompare 0.1.0
 
-- New two-sample R API and a C++17 SMC engine with exact partial-tree messages.
-- Compact shared observation blocks, linear-time weight normalization and
-  systematic resampling, and histogram-based split counts.
-- Representative-tree region summaries, signed and absolute log-odds effects,
-  zero-atom credible intervals, plots and particle diagnostics.
-- Common pooled-rank coordinates with original-scale explanations; the default
-  without supplied support is rank. Supplied support defaults to linear scaling.
-- Exact-enumeration tests, statistical evaluation and RStudio examples.
-- `pt_prior(midpoint_spike = TRUE)`: the spike-and-slab location prior of
-  Awaya and Ma (2024, Appendix A) is now implemented and used by default; once
-  a node is divided at its midpoint, all its descendants are too. Results
-  saved in `evaluation/` were obtained before this change, i.e. with the
-  equivalent of `midpoint_spike = FALSE`. Exact-enumeration tests cover both.
-- `pt_control(resample_power = 0.5)`: resampling with probabilities
-  proportional to W^kappa and weights W/a (Awaya and Ma, 2024, Section 3.1),
-  with the paper's default kappa = 0.5; `resample_power = 1` gives standard
-  resampling. Saved evaluation results predate this change (kappa = 1).
-- Reported thresholds now reproduce the engine's region membership exactly
-  (previously rounding could move an observation lying on a cut).
-- Effect summaries (`effect_abs`, intervals, `prob_positive`) are computed by
-  `regions()`/`summary()` for the returned nodes only; `fit$tree` keeps the
-  signed `effect`. Split columns of leaves are NA.
-- A warning is issued when no split is possible. Vector inputs for one
-  variable, `print(fit, ...)` and graphical parameters in `plot()` are
-  accepted; the region-plot histogram is aligned with its bins.
-- New plots: `plot(fit, type = "regions")` shows the regions with the largest
-  effects on scatter plots, as in Figure 14 of the supplement of Awaya and Ma
-  (2024); `plot(fit, type = "levels")` shades the regions of each tree level by
-  their probability of difference for two variables, as in Figure 7 of
-  Soriano and Ma (2017). `type = "region"` now draws the region on a scatter
-  plot of two variables.
-- This is a finite HMPT variant; it does not reproduce legacy HMPT output.
+First release.
+
+* `compare_pt()` compares two samples of continuous multivariate observations
+  with the hidden Markov Pólya tree of Awaya and Ma (2024)
+  <doi:10.1080/01621459.2022.2105223>. It returns the posterior probability
+  that the two distributions differ, a representative partition tree, and local
+  effect sizes for the divisions of that tree. Posterior computation combines
+  sequential Monte Carlo over partitions with recursive message passing. The
+  two samples are supplied either as two matrices or as one data set with a
+  grouping variable.
+
+* `pt_prior()` sets the model: the depth of the tree, the number of candidate
+  split points, the state transition probabilities, and the spike-and-slab
+  prior on split locations of Awaya and Ma (2024, Appendix A), which is used by
+  default. `pt_control()` sets the computational budget: the number of
+  particles, the resampling threshold and power, and the number of posterior
+  draws used for the effect sizes.
+
+* Variables are put on a common scale before the space is divided.
+  `transform = "rank"` uses pooled midranks and is the default;
+  `transform = "range"` uses the linear scaling of the paper and is the default
+  when `support` is supplied. Thresholds and region conditions are reported in
+  the original units.
+
+* `regions()` lists the divisions of the representative tree with their
+  probability of a difference and their signed and absolute log odds ratios,
+  ordered by either quantity. `region_rows()` and `region_data()` return the
+  observations of a region.
+
+* `plot()` draws the representative tree, the regions with the largest
+  differences on scatter plots, the regions of each tree depth shaded by their
+  probability of a difference (two variables only), and the effective sample
+  size of the sequential Monte Carlo. `summary()` and `diagnostics()` report
+  the settings and the computation.
+
+* `vignette("ptcompare")` works through a simulated comparison in two variables
+  and a comparison of 30 measurements of cell nuclei.

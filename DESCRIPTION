@@ -1,7 +1,7 @@
 Package: ptcompare
 Type: Package
 Title: Bayesian Multiscale Two-Sample Comparison
-Version: 0.0.1
+Version: 0.1.0
 Authors@R: person("Naoki", "Awaya", role = c("aut", "cre"),
     email = "nawaya@waseda.jp")
 Description: Bayesian comparison of two multivariate distributions using
