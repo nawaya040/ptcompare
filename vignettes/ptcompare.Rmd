@@ -14,8 +14,6 @@ knitr::opts_chunk$set(collapse = TRUE, comment = "#>",
 has_mclust <- requireNamespace("mclust", quietly = TRUE)
 ```
 
-# The method
-
 `ptcompare` compares two samples of continuous multivariate observations. It
 implements the hidden Markov Pólya tree of Awaya and Ma (2024), a nonparametric
 Bayesian model whose structure is a recursive partition of the data space.

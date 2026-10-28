@@ -39,6 +39,7 @@
 PLAN.md、evaluation/REPORT.md、WORKLOG.mdにある従来の研究課題・将来案は参考記録として扱い、
 本指示と矛盾する内容を自律的な作業予定や必須の完了条件として採用しない。
 PLAN.mdとWORKLOG.mdは2026-10-27にmainから削除し、backup/full-historyブランチに残している。
+mainには内部の作業記録を置かない。
 
 ## 文書の書き方
 
@@ -51,17 +52,3 @@ PLAN.mdとWORKLOG.mdは2026-10-27にmainから削除し、backup/full-historyブ
   必要な限界は末尾の短い節に一度だけ書く。
 - 文章だけの修正ではR CMD checkを実行しない。
 
-## CRAN提出の作業状況（2026-10-27時点）
-
-提出が済んだらこの節は削除する。
-
-- 0.1.0を準備済みで、CRANには未提出。
-- win-builderのR-releaseとR-develは、どちらも0.0.1で実行した。R-releaseはNOTE 1件
-  （新規提出と、DESCRIPTIONの意図的な3語 Awaya / Multiscale / Polya）。
-  R-develは処理が始まったが、結果のメールは未確認。メールの宛先はDESCRIPTIONのMaintainer
-  （nawaya@waseda.jp）で、R-releaseのメールとは本文の「R Under development (unstable)」の行で区別する。
-- 0.0.1と0.1.0のRとC++のソースは同一。各チェックの結果はcran-comments.mdに記録してある。
-- 次の手順: 0.1.0のtarballを作り直す（`R CMD build`、RtoolsをPATHに入れる）→ win-builderの
-  R-releaseとR-develに投げ直す → 結果をcran-comments.mdに反映 → CRANの提出フォームから提出。
-- macOS builderは保留。前回の実行はbuilder側にRcppとSuggestsがなく、コンパイル前に止まった。
-- mainには内部の作業記録を置かない。

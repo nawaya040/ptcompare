@@ -4,17 +4,34 @@ This is a new submission. Submitted version: 0.1.0.
 
 ## Test environments
 
+* local Windows 11, R-devel (2026-10-26 r90766 ucrt), Rtools45 —
+  `R CMD check --as-cran` on 0.1.0
 * local Windows 11, R 4.5.2, Rtools45 — `R CMD check --as-cran` on 0.1.0
-* win-builder, R-release (R 4.6.1, Windows Server 2022, x86_64) — 0.0.1
-* win-builder, R-devel — 0.0.1, queued at the time of writing
+* win-builder, R-release (R 4.6.1, Windows Server 2022, x86_64) — 0.1.0
+* win-builder, R-devel — 0.1.0 and 0.0.1 were uploaded; no result was
+  returned for either; see below
 * macOS builder (macbuilder.r-project.org) — the run did not check the
   package; see below
 
 0.0.1 and 0.1.0 differ only in the version string, `NEWS.md`, the README, the
-heading of the statistical specification and three words of vignette prose. No
-R or C++ source file differs between them.
+heading of the statistical specification and the vignette prose. No R or C++
+source file differs between them.
 
 ## R CMD check results
+
+### local, R-devel (2026-10-26 r90766 ucrt), `--as-cran` (0.1.0)
+
+No ERRORs, no WARNINGs, 1 NOTE. The checked tarball is the one uploaded to
+CRAN. Rcpp and the Suggests packages were installed from CRAN for this R-devel
+build. Examples, tests, the vignette and both versions of the manual were
+built and run.
+
+```
+* checking CRAN incoming feasibility ... NOTE
+Maintainer: 'Naoki Awaya <nawaya@waseda.jp>'
+
+New submission
+```
 
 ### local, R 4.5.2, `--as-cran` (0.1.0)
 
@@ -34,10 +51,13 @@ unable to verify current time
 The second is the check being unable to reach the time service from the
 machine it ran on. It does not appear on win-builder.
 
-### win-builder, R-release (0.0.1)
+### win-builder, R-release (0.1.0)
 
-Status: 1 NOTE. No ERRORs, no WARNINGs. Installation 14s, check 127s, and the
-Windows binary was built.
+Status: 1 NOTE. No ERRORs, no WARNINGs. Installation 22s, check 126s, and the
+Windows binary was built. Examples, tests, the vignette and both versions of
+the manual were built and run. The run on 0.0.1 gave the same NOTE. The
+tarball checked here was built before one section heading was removed from the
+vignette; the uploaded tarball differs from it only in that heading.
 
 ```
 * checking CRAN incoming feasibility ... NOTE
@@ -57,6 +77,13 @@ spelling of Pólya, used because the DESCRIPTION file is ASCII. A spell check
 of the manual, the vignette and `NEWS.md` reports no other words outside the
 dictionary except proper nouns (Mangasarian, Soriano, Wolberg), package names
 and the terms "midranks" and "subregions".
+
+### win-builder, R-devel
+
+0.0.1 was uploaded on 2026-10-27 and 0.1.0 on 2026-10-28. Both left the
+upload queue, but neither run sent a result. On 2026-10-28 the R-devel queue
+held other packages for more than 30 minutes while the R-release queue was
+empty. The R-devel check was therefore run locally; see above.
 
 ### macOS builder
 
